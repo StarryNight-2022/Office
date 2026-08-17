@@ -26,6 +26,9 @@ class SystemApp(App):
         self.wait_for_notification_timeout: WaitForNotificationTimeout | None = None
         self.wait_for_next_notification: Callable[[], None] = lambda: None
         self._farm_world_app = None
+        # Domain runtimes may subscribe without adding building-specific logic
+        # to this shared clock App. Hooks receive (previous, current) timestamps.
+        self._time_advance_hooks: list[Callable[[float, float], None]] = []
 
     def wait(self, time: int = 0) -> None:
         assert time >= 0, "Time must be non-negative"
@@ -55,6 +58,12 @@ class SystemApp(App):
 
     def attach_farm_world_app(self, farm_world_app) -> None:
         self._farm_world_app = farm_world_app
+
+    def register_time_advance_hook(
+        self, callback: Callable[[float, float], None]
+    ) -> None:
+        if callback not in self._time_advance_hooks:
+            self._time_advance_hooks.append(callback)
 
     @type_check
     @app_tool()
@@ -88,6 +97,7 @@ class SystemApp(App):
         )
         if total_seconds <= 0:
             return {"error": "advance_time amount must be > 0"}
+        previous_timestamp = float(self.time_manager.time())
         farm_world_app = self._farm_world_app
         if farm_world_app is not None:
             prepare = getattr(farm_world_app, "prepare_for_time_advance", None)
@@ -107,6 +117,8 @@ class SystemApp(App):
             if callable(advance):
                 advance()
         timestamp = self.time_manager.time()
+        for callback in tuple(self._time_advance_hooks):
+            callback(previous_timestamp, float(timestamp))
         return {
             "status": "ok",
             "advanced_seconds": total_seconds,

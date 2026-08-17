@@ -1,0 +1,38 @@
+# macOS and editor metadata
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Local Python environments and packaging output
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# Local credentials. Commit a sanitized .env.example when needed.
+.env
+.env.*
+!.env.example
+
+# FAIRY-generated run, workflow and evaluation artifacts
+runs/
+fos_exports/
+workflow_exports/
+*.log

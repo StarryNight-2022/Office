@@ -18,7 +18,14 @@ class QwenClient(BaseLLM):
     def __init__(self, model, temperature=0.1, api_key=None, **kwargs):
         super().__init__(model, temperature, **kwargs)
         self.provider = "qwen"
-        self.api_key = api_key or os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+        # Match the VLLM-compatible client: permit offline construction for
+        # configuration/tests, while a real endpoint still rejects EMPTY.
+        self.api_key = (
+            api_key
+            or os.getenv("QWEN_API_KEY")
+            or os.getenv("DASHSCOPE_API_KEY")
+            or "EMPTY"
+        )
         self.base_url = kwargs.get("base_url") or QWEN_API_BASE
         self.api_client = OpenAI(
             api_key=self.api_key,

@@ -1,10 +1,10 @@
 # llm_clients/openai_client.py
 import os
+
 from openai import OpenAI
 
 from fairy.agents.llm.base_llm import BaseLLM
 
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 DEEPSEEK_API_BASE = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
 
 class DeepSeekClient(BaseLLM):
@@ -21,7 +21,10 @@ class DeepSeekClient(BaseLLM):
         """
         super().__init__(model, temperature, **kwargs)
         self.provider = "deepseek"
-        self.api_key = api_key or DEEPSEEK_API_KEY
+        # Read credentials when constructing the client. Import-time caching
+        # makes notebook, test and long-running development processes ignore
+        # environment variables configured after this module was imported.
+        self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
         self.model = model
         self.base_url = kwargs.get("base_url") or DEEPSEEK_API_BASE
         self.api_client = OpenAI(

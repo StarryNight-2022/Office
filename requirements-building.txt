@@ -1,0 +1,13 @@
+# FAIRY Building runtime and repository import compatibility.
+numpy>=1.26,<3
+# FAIRY's compatible-provider clients are currently validated against the
+# OpenAI Python 1.x constructor semantics.
+openai>=1.40,<2
+
+# Real-sensor gateway client. The Building adapter itself remains protocol-only.
+paho-mqtt>=2,<3
+
+# Development, regression testing and formatting.
+pytest>=8,<10
+pytest-cov>=5,<8
+ruff>=0.6,<1
