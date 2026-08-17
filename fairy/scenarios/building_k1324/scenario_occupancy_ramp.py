@@ -26,8 +26,7 @@ from fairy.scenarios.registry import register_scenario
 from fairy.scenarios.validation_result import ScenarioValidationResult
 from fairy.types import EventRegisterer
 
-
-ZONE_ID = "k1324_meeting_zone"
+ZONE_ID = "k1324_office_zone"
 OCCUPANCY_TIMELINE = ((10, 5), (20, 10), (30, 15), (45, 10), (55, 5), (65, 0))
 
 
@@ -38,7 +37,7 @@ class ScenarioBuildingK1324OccupancyRamp(K1324BuildingScenario):
     start_time: float | None = local_timestamp(2026, 9, 10, 9)
     time_increment_in_seconds: int = 60
     scenario_input = """
-K1324 的参会人员会按照计划分批进入并在活动后分批离开。请开启正常通风，
+K1324 研究生办公室的师生会在工作日早晨分批到达，并在午间前分批离开。请开启正常通风，
 在每个人数阶段等待物理环境演化并检查传感器；全部人员离开后继续通风一段时间，
 确认空气质量开始恢复，然后关闭空调风机。
 """.strip()
@@ -53,8 +52,7 @@ K1324 的参会人员会按照计划分批进入并在活动后分批离开。�
             tuple(
                 MeetingPhase(
                     f"occupancy-{minute:02d}-{count:02d}",
-                    datetime(2026, 9, 10, 9, tzinfo=CST)
-                    + timedelta(minutes=minute),
+                    datetime(2026, 9, 10, 9, tzinfo=CST) + timedelta(minutes=minute),
                     BuildingEventType.OCCUPANCY_CHANGED,
                     "k1324",
                     {"room_id": "k1324", "occupancy_count": count},

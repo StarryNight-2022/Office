@@ -214,6 +214,8 @@ class BuildingWorldApp(App):
                 name=item["name"],
                 capacity=int(item["capacity"]),
                 capabilities=frozenset(item.get("capabilities", [])),
+                room_type=item.get("room_type", "general"),
+                bookable=bool(item.get("bookable", True)),
             )
             for item in snapshot.get("rooms", [])
         }
@@ -329,6 +331,8 @@ def _room_to_dict(room: RoomSpec) -> dict[str, Any]:
         "name": room.name,
         "capacity": room.capacity,
         "capabilities": sorted(room.capabilities),
+        "room_type": room.room_type,
+        "bookable": room.bookable,
     }
 
 

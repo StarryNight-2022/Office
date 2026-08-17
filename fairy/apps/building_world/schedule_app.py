@@ -126,9 +126,7 @@ class ScheduleApp(App):
             return _rejected("unknown_organizer", organizer_id=organizer_id)
         if organizer.role in {PersonRole.UNKNOWN, PersonRole.VISITOR}:
             return _rejected("organizer_not_authorized", organizer_id=organizer_id)
-        unknown_participants = sorted(
-            set(participant_ids) - set(self.world.people)
-        )
+        unknown_participants = sorted(set(participant_ids) - set(self.world.people))
         if unknown_participants:
             return _rejected(
                 "unknown_participants", participant_ids=unknown_participants
@@ -140,6 +138,8 @@ class ScheduleApp(App):
         room = self.world.rooms.get(room_id)
         if room is None:
             return _rejected("unknown_room", room_id=room_id)
+        if not room.bookable:
+            return _rejected("room_not_bookable", room_id=room_id)
         if expected_attendees > room.capacity:
             return _rejected(
                 "room_capacity_exceeded",

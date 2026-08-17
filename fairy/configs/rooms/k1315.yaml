@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "room": {
+    "room_id": "k1315",
+    "name": "K1315 Conference Room",
+    "room_type": "conference_room",
+    "bookable": true,
+    "capacity": 20,
+    "capabilities": ["projector", "audio", "microphone", "printing", "video_conference"]
+  },
+  "zones": [
+    {
+      "zone_id": "k1315_conference_zone",
+      "name": "K1315 Conference Air Zone",
+      "purpose": "formal_meeting",
+      "area_m2": 50.0,
+      "height_m": 3.0,
+      "physics": {
+        "thermal_capacitance_j_k": 3000000.0,
+        "envelope_conductance_w_k": 90.0,
+        "infiltration_air_changes_per_hour": 0.25,
+        "effective_solar_aperture_m2": 3.0,
+        "solar_heat_gain_coefficient": 0.55,
+        "pm25_deposition_rate_per_hour": 0.15,
+        "cooling_moisture_removal_g_per_kwh": 600.0,
+        "heating_cop": 3.0,
+        "cooling_cop": 3.2
+      },
+      "initial_state": {"air_temperature_c": 28.0, "relative_humidity_pct": 62.0, "co2_ppm": 500.0, "pm25_ug_m3": 28.0}
+    }
+  ],
+  "functional_areas": [
+    {"area_id": "k1315_presentation_area", "name": "Presentation Area", "purpose": "presentation_and_speaking", "zone_id": "k1315_conference_zone", "capacity": 3},
+    {"area_id": "k1315_audience_front", "name": "Front Audience Area", "purpose": "participant_seating", "zone_id": "k1315_conference_zone", "capacity": 8},
+    {"area_id": "k1315_audience_rear", "name": "Rear Audience Area", "purpose": "participant_seating", "zone_id": "k1315_conference_zone", "capacity": 9},
+    {"area_id": "k1315_service_area", "name": "Meeting Service Area", "purpose": "printing_and_equipment_service", "zone_id": "k1315_conference_zone"}
+  ],
+  "devices": [
+    {"device_id": "k1315_hvac_01", "device_type": "hvac", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_service_area", "capabilities": ["cooling", "heating", "fan"], "rated_power_w": 1800.0, "parameters": {"thermal_capacity_w": 5000.0, "fan_power_w": 120.0, "outdoor_airflow_m3_s": 0.03}},
+    {"device_id": "k1315_humidifier_01", "device_type": "humidifier", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_service_area", "capabilities": ["humidification"], "rated_power_w": 80.0, "parameters": {"humidification_g_s_max": 0.35}},
+    {"device_id": "k1315_purifier_01", "device_type": "air_purifier", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_service_area", "capabilities": ["pm25_removal"], "rated_power_w": 60.0, "parameters": {"clean_air_delivery_m3_s_max": 0.12}},
+    {"device_id": "k1315_projector_01", "device_type": "projector", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_presentation_area", "capabilities": ["projection"], "rated_power_w": 300.0},
+    {"device_id": "k1315_audio_01", "device_type": "audio", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_presentation_area", "capabilities": ["speaker", "microphone"], "rated_power_w": 100.0},
+    {"device_id": "k1315_printer_01", "device_type": "printer", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_service_area", "capabilities": ["document", "nameplate"], "rated_power_w": 500.0, "parameters": {"pages_per_minute": 20.0}},
+    {"device_id": "k1315_ventilation_01", "device_type": "ventilation", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_service_area", "capabilities": ["outdoor_air", "co2_control"], "rated_power_w": 180.0, "parameters": {"outdoor_airflow_m3_s_max": 0.35}},
+    {"device_id": "k1315_lighting_front_01", "device_type": "lighting", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_presentation_area", "capabilities": ["dimming", "color_temperature", "scene"], "rated_power_w": 120.0},
+    {"device_id": "k1315_lighting_audience_01", "device_type": "lighting", "zone_id": "k1315_conference_zone", "functional_area_id": "k1315_audience_front", "capabilities": ["dimming", "color_temperature", "scene"], "rated_power_w": 180.0}
+  ],
+  "sensors": [
+    {"sensor_id": "k1315_temp_01", "zone_id": "k1315_conference_zone", "quantity": "air_temperature_c", "sample_interval_seconds": 60.0},
+    {"sensor_id": "k1315_rh_01", "zone_id": "k1315_conference_zone", "quantity": "relative_humidity_pct", "sample_interval_seconds": 60.0},
+    {"sensor_id": "k1315_co2_01", "zone_id": "k1315_conference_zone", "quantity": "co2_ppm", "sample_interval_seconds": 60.0},
+    {"sensor_id": "k1315_pm25_01", "zone_id": "k1315_conference_zone", "quantity": "pm25_ug_m3", "sample_interval_seconds": 60.0}
+  ]
+}

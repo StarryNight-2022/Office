@@ -33,7 +33,7 @@ class RoomApp(App):
         min_capacity: int,
         required_capabilities: list[str],
     ) -> dict[str, Any]:
-        """Find rooms satisfying capacity, capability and time constraints."""
+        """Find bookable rooms satisfying capacity, capability and time constraints."""
 
         try:
             start, end = parse_interval(start_at, end_at)
@@ -44,6 +44,8 @@ class RoomApp(App):
         required = set(required_capabilities)
         rooms = []
         for room in sorted(self.world.rooms.values(), key=lambda item: item.room_id):
+            if not room.bookable:
+                continue
             if room.capacity < min_capacity:
                 continue
             if not required.issubset(room.capabilities):
@@ -56,6 +58,8 @@ class RoomApp(App):
                         "name": room.name,
                         "capacity": room.capacity,
                         "capabilities": sorted(room.capabilities),
+                        "room_type": room.room_type,
+                        "bookable": room.bookable,
                     }
                 )
         return {

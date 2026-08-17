@@ -91,12 +91,16 @@ class RoomSpec:
     name: str
     capacity: int
     capabilities: frozenset[str] = field(default_factory=frozenset)
+    room_type: str = "general"
+    bookable: bool = True
 
     def __post_init__(self) -> None:
         if not self.room_id:
             raise ValueError("room_id cannot be empty")
         if self.capacity <= 0:
             raise ValueError("room capacity must be positive")
+        if not self.room_type:
+            raise ValueError("room_type cannot be empty")
 
 
 @dataclass(frozen=True)

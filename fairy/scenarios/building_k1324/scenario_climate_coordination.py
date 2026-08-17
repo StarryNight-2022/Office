@@ -27,8 +27,7 @@ from fairy.scenarios.registry import register_scenario
 from fairy.scenarios.validation_result import ScenarioValidationResult
 from fairy.types import EventRegisterer
 
-
-ZONE_ID = "k1324_meeting_zone"
+ZONE_ID = "k1324_office_zone"
 
 
 @register_scenario("scenario_building_k1324_climate_coordination")
@@ -38,7 +37,7 @@ class ScenarioBuildingK1324ClimateCoordination(K1324BuildingScenario):
     start_time: float | None = local_timestamp(2026, 9, 10, 9)
     time_increment_in_seconds: int = 60
     scenario_input = """
-请将 K1324 从当前环境平稳调节到适合会议的状态。先启动空调制冷，等待并读取
+请将 K1324 研究生办公室从当前环境平稳调节到适合日常办公的状态。先启动空调制冷，等待并读取
 传感器，再根据温湿度开启加湿器；继续观察后转为低档维持，完成时关闭设备。
 每个控制阶段都必须经过物理时间推进和传感器验证。
 """.strip()
@@ -143,7 +142,9 @@ class ScenarioBuildingK1324ClimateCoordination(K1324BuildingScenario):
                 .depends_on(final_reading, delay_seconds=1)
             )
             report = (
-                aui.send_message_to_user(content="K1324 温湿度协同调节完成，设备已关闭。")
+                aui.send_message_to_user(
+                    content="K1324 温湿度协同调节完成，设备已关闭。"
+                )
                 .oracle()
                 .with_id("report_climate_complete")
                 .depends_on(stop_hvac, delay_seconds=1)

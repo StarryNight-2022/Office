@@ -20,7 +20,7 @@ python -m pip install -r requirements-building.txt
 PYTHONPATH=. python -m pytest tests/test_building_*.py -q
 ```
 
-`k1324.yaml` 当前使用 JSON-compatible YAML，因此运行时不依赖 PyYAML。真实 MQTT
+三个房间配置均使用 JSON-compatible YAML，因此运行时不依赖 PyYAML。真实 MQTT
 部署使用 `paho-mqtt` 建立连接、认证、订阅和重连，再把消息交给现有 Adapter。
 
 ## 1. 当前总体结构
@@ -48,7 +48,7 @@ BuildingWorldRuntime                         |  Sensor Adapter
   energy / comfort / PhysicsEvent
 ```
 
-当前会议预约与环境感知均已装配到 `K1324BuildingScenario`。设备命令可通过
+当前三个房间与环境感知均已装配到共享 Building Runtime。设备命令可通过
 `BuildingWorldRuntime` 在 `SystemApp.advance_time()` 后形成物理效果和模拟观测；
 Event Queue、第一版 Trigger Policy、Building 专用 system prompt 和
 `building_baseline_react` 已接入。尚未完成的是事件直接唤醒 Agent 的在线执行器与
@@ -73,8 +73,8 @@ App 或 Physics，否则换一个场景就会复制业务逻辑。
 
 当前场景：
 
-- `base.py`：K1324 房间、人员及 App 组装；
-- `scenario_meeting_booking.py`：首选 K1324 冲突后预约 K1316。
+- `base.py`：K1324、K1316、K1315 房间、人员及 App 组装；
+- `scenario_meeting_booking.py`：首选 K1315 冲突后预约 K1316；
 - `meeting_lifecycle.py`：正常会议阶段、占用变化和会后资源释放；
 - `scenario_conference_standard.py`：标准会议完整生命周期；
 - `scenario_climate_coordination.py`：空调与加湿器的观测反馈协同；
@@ -174,9 +174,19 @@ topic / point address / raw payload
 
 禁止在 Scenario、SensorApp 或 ScheduleApp 中复制另一层的可变状态。
 
-K1324 当前仍只有一个物理空气区 `k1324_meeting_zone`，但配置中增加了演示区、前后
-观众区、入口区和服务区五个功能分区。功能分区用于设备布置和业务推理，全部映射到
-同一物理 zone；在有分区传感器或可靠流体参数之前，不人为制造多个独立空气真值。
+当前空间模型如下：
+
+| 房间 | 类型 | 容量 | 可预约 | 功能结构 |
+|---|---|---:|---|---|
+| K1324 | 研究生办公室 | 17 | 否 | 两间单人教师办公室、一间三人工位隔间、12 个研究生工位 |
+| K1316 | 研讨室 | 8 | 是 | 研讨桌与演示/白板区 |
+| K1315 | 会议室 | 20 | 是 | 演示区、前后参会区、会议服务区及完整会议设备 |
+
+三个房间分别映射到 `k1324_office_zone`、`k1316_seminar_zone` 和
+`k1315_conference_zone`。功能分区用于设备布置和业务推理；每个房间当前仍只使用
+一个物理空气区，在有分区传感器或可靠流体参数之前不人为制造多个独立空气真值。
+K1315 的 20 人容量、K1316 的 8 人容量和面积参数是当前仿真初值，取得现场尺寸后
+应直接在相应房间配置中校正。
 
 ## 4. 会议预约完整工作流
 

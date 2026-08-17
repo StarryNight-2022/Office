@@ -20,7 +20,7 @@ from fairy.scenarios.building_k1324.scenario_meeting_booking import (
 
 CONFIG_PATH = Path(__file__).parents[1] / "fairy" / "configs" / "rooms" / "k1324.yaml"
 START_AT = datetime(2026, 9, 10, 5, 0, tzinfo=timezone.utc)
-ZONE_ID = "k1324_meeting_zone"
+ZONE_ID = "k1324_office_zone"
 
 
 def _runtime() -> BuildingWorldRuntime:
@@ -42,14 +42,16 @@ def test_room_loader_builds_business_physics_device_and_sensor_models() -> None:
     config = load_room_configuration(CONFIG_PATH)
 
     assert config.room.room_id == "k1324"
+    assert config.room.room_type == "graduate_office"
+    assert config.room.bookable is False
+    assert config.room.capacity == 17
     assert list(config.zone_parameters) == [ZONE_ID]
-    assert config.zone_parameters[ZONE_ID].volume_m3 == pytest.approx(150.0)
+    assert config.zone_parameters[ZONE_ID].volume_m3 == pytest.approx(210.0)
     assert {area.area_id for area in config.functional_areas} == {
-        "k1324_presentation_area",
-        "k1324_audience_front",
-        "k1324_audience_rear",
-        "k1324_entrance_area",
-        "k1324_service_area",
+        "k1324_professor_office_01",
+        "k1324_professor_office_02",
+        "k1324_shared_cubicle",
+        "k1324_graduate_workstations",
     }
     assert {device.device_id for device in config.devices} >= {
         "k1324_hvac_01",
@@ -60,15 +62,9 @@ def test_room_loader_builds_business_physics_device_and_sensor_models() -> None:
 
     world = _runtime().world
     snapshot = world.snapshot()
-    assert len(snapshot["functional_areas"]) == 5
-    assert (
-        next(
-            device
-            for device in snapshot["devices"]
-            if device["device_id"] == "k1324_projector_01"
-        )["functional_area_id"]
-        == "k1324_presentation_area"
-    )
+    assert len(snapshot["functional_areas"]) == 4
+    assert snapshot["rooms"][0]["bookable"] is False
+    assert snapshot["rooms"][0]["room_type"] == "graduate_office"
 
 
 def test_room_loader_rejects_unknown_device_zone(tmp_path: Path) -> None:
@@ -148,3 +144,24 @@ def test_k1324_system_time_advance_drives_runtime_and_sensor_app() -> None:
     response = sensors.read_zone_sensors(ZONE_ID)
     assert after < before
     assert len(response["readings"]) == 4
+
+
+def test_scenario_base_assembles_three_distinct_room_models() -> None:
+    scenario = ScenarioBuildingK1324MeetingBooking()
+    Engine(None, scenario).build_oracle_workflow(run_oracle=False)
+    world = scenario.building_runtime.world
+
+    assert set(world.rooms) == {"k1324", "k1316", "k1315"}
+    assert world.rooms["k1324"].bookable is False
+    assert world.rooms["k1324"].capacity == 17
+    assert world.rooms["k1316"].room_type == "seminar_room"
+    assert world.rooms["k1316"].bookable is True
+    assert world.rooms["k1315"].room_type == "conference_room"
+    assert world.rooms["k1315"].bookable is True
+    assert "k1315_projector_01" in world.devices
+    assert "k1324_projector_01" not in world.devices
+    assert set(scenario.building_runtime.physics.engine.get_state()) == {
+        "k1324_office_zone",
+        "k1316_seminar_zone",
+        "k1315_conference_zone",
+    }

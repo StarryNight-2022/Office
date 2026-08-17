@@ -77,6 +77,8 @@ def _parse_room_configuration(raw: Mapping[str, Any]) -> LoadedRoomConfiguration
         name=_required_string(room_raw, "name"),
         capacity=_positive_int(room_raw, "capacity"),
         capabilities=frozenset(_string_list(room_raw, "capabilities")),
+        room_type=str(room_raw.get("room_type", "general")),
+        bookable=_boolean(room_raw, "bookable", default=True),
     )
 
     zone_rows = _object_list(raw, "zones", require_nonempty=True)
@@ -257,4 +259,11 @@ def _string_list(parent: Mapping[str, Any], key: str) -> list[str]:
     value = parent.get(key, [])
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ValueError(f"{key} must be an array of strings")
+    return value
+
+
+def _boolean(parent: Mapping[str, Any], key: str, *, default: bool) -> bool:
+    value = parent.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(f"{key} must be a boolean")
     return value

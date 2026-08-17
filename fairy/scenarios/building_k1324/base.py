@@ -28,7 +28,7 @@ from fairy.apps.building_world.runtime import (
     constant_outdoor_provider,
     utc_datetime,
 )
-from fairy.apps.building_world.types import PersonRole, PersonState, RoomSpec
+from fairy.apps.building_world.types import PersonRole, PersonState
 from fairy.apps.system import SystemApp
 from fairy.physics.building.models import OutdoorConditions
 from fairy.scenarios.scenario import Scenario
@@ -75,12 +75,14 @@ class K1324BuildingScenario(Scenario):
         # The UI app turns the scenario briefing and final response into
         # first-class events, matching the current build_events_flow format.
         aui = AgentUserInterface()
-        configuration = load_room_configuration(
-            Path(__file__).parents[2] / "configs" / "rooms" / "k1324.yaml"
+        room_config_dir = Path(__file__).parents[2] / "configs" / "rooms"
+        configurations = tuple(
+            load_room_configuration(room_config_dir / filename)
+            for filename in ("k1324.yaml", "k1316.yaml", "k1315.yaml")
         )
         world = BuildingWorldApp()
-        runtime = BuildingWorldRuntime.from_room_configuration(
-            configuration,
+        runtime = BuildingWorldRuntime.from_room_configurations(
+            configurations,
             world=world,
             start_at=utc_datetime(float(self.start_time or 0.0)),
             outdoor_provider=constant_outdoor_provider(
@@ -128,28 +130,7 @@ class K1324BuildingScenario(Scenario):
             sensors,
             system,
         ]
-        self._configure_rooms(world)
         self._configure_people(world)
-
-    def _configure_rooms(self, world: BuildingWorldApp) -> None:
-        # K1324 itself comes from the declarative room configuration.  These
-        # nearby alternatives remain simple booking-only rooms for this fixture.
-        world.add_room(
-            RoomSpec(
-                room_id="k1316",
-                name="K1316 Meeting Room",
-                capacity=8,
-                capabilities=frozenset({"projector"}),
-            )
-        )
-        world.add_room(
-            RoomSpec(
-                room_id="k1315",
-                name="K1315 Small Meeting Room",
-                capacity=4,
-                capabilities=frozenset(),
-            )
-        )
 
     def _configure_people(self, world: BuildingWorldApp) -> None:
         for person in (

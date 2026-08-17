@@ -16,7 +16,7 @@ adapter = MqttSensorAdapter(
         SensorPointMapping(
             point_address="k13/k1324/environment/temperature",
             sensor_id="k1324_temp_01",
-            zone_id="k1324_meeting_zone",
+            zone_id="k1324_office_zone",
             quantity=SensorQuantity.AIR_TEMPERATURE_C,
             source_unit="degC",
         )
@@ -26,7 +26,7 @@ adapter = MqttSensorAdapter(
 # paho-mqtt/asyncio-mqtt 等客户端的消息回调只需转发：
 adapter.on_message(topic, payload, received_at=received_at)
 
-hub = SensorHub(["k1324_meeting_zone"], published_priority=0)
+hub = SensorHub(["k1324_office_zone"], published_priority=0)
 hub.register_provider("k1324_mqtt", adapter, priority=100)
 ```
 

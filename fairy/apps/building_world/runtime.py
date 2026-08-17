@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -95,16 +95,59 @@ class BuildingWorldRuntime:
         observation_seed: int = 0,
         max_timestep_seconds: float = 300.0,
     ) -> BuildingWorldRuntime:
+        return cls.from_room_configurations(
+            (configuration,),
+            start_at=start_at,
+            outdoor_provider=outdoor_provider,
+            world=world,
+            observation_seed=observation_seed,
+            max_timestep_seconds=max_timestep_seconds,
+        )
+
+    @classmethod
+    def from_room_configurations(
+        cls,
+        configurations: Sequence[LoadedRoomConfiguration],
+        *,
+        start_at: datetime,
+        outdoor_provider: OutdoorProvider,
+        world: BuildingWorldApp | None = None,
+        observation_seed: int = 0,
+        max_timestep_seconds: float = 300.0,
+    ) -> BuildingWorldRuntime:
+        """Assemble multiple declarative rooms into one shared runtime."""
+
+        if not configurations:
+            raise ValueError("at least one room configuration is required")
         world = world or BuildingWorldApp()
-        configuration.install_into(world)
-        sensors = SensorHub(configuration.zone_parameters)
+        zone_parameters = {}
+        initial_zone_states = {}
+        sensor_specs = []
+        sensor_ids: set[str] = set()
+        for configuration in configurations:
+            configuration.install_into(world)
+            duplicate_zones = set(zone_parameters) & set(configuration.zone_parameters)
+            if duplicate_zones:
+                raise ValueError(
+                    f"duplicate zones across room configurations: {sorted(duplicate_zones)}"
+                )
+            zone_parameters.update(configuration.zone_parameters)
+            initial_zone_states.update(configuration.initial_zone_states)
+            for sensor in configuration.sensors:
+                if sensor.sensor_id in sensor_ids:
+                    raise ValueError(
+                        f"duplicate sensor across room configurations: {sensor.sensor_id!r}"
+                    )
+                sensor_ids.add(sensor.sensor_id)
+                sensor_specs.append(sensor)
+        sensors = SensorHub(zone_parameters)
         observation = BuildingObservationModel(
-            configuration.sensors, seed=observation_seed
+            tuple(sensor_specs), seed=observation_seed
         )
         physics = BuildingPhysicsOrchestrator(
             IndoorEnvironmentEngine(
-                configuration.zone_parameters,
-                configuration.initial_zone_states,
+                zone_parameters,
+                initial_zone_states,
             ),
             observation_model=observation,
             observation_sink=sensors,

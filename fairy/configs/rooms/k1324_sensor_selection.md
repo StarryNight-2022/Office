@@ -28,7 +28,7 @@
 前期每个主要环境 zone 使用一台组合式温湿度/CO₂ 设备即可：
 
 ```text
-K1324 meeting zone: temperature + RH + CO2
+K1324 office zone: temperature + RH + CO2
 ```
 
 如果 K1324 面积较大或座位靠近空调出风口，可增加第二个温湿度点，分别放在：

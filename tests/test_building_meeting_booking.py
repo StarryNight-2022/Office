@@ -1,3 +1,4 @@
+from fairy.agents.agent.toolset_builder import build_toolset
 from fairy.apps.agent_user_interface import AgentUserInterface
 from fairy.apps.building_world import (
     BuildingWorldApp,
@@ -13,7 +14,6 @@ from fairy.apps.building_world.types import (
     RoomSpec,
 )
 from fairy.controllers.engine import Engine
-from fairy.agents.agent.toolset_builder import build_toolset
 from fairy.scenarios.building_k1324.scenario_meeting_booking import (
     END_AT,
     START_AT,
@@ -24,9 +24,7 @@ from fairy.scenarios.registry import get_scenario_class
 
 def _apps():
     world = BuildingWorldApp()
-    world.add_room(
-        RoomSpec("room-01", "Meeting Room", 8, frozenset({"projector"}))
-    )
+    world.add_room(RoomSpec("room-01", "Meeting Room", 8, frozenset({"projector"})))
     world.add_person(PersonState("student", "Student", PersonRole.STUDENT))
     world.add_person(PersonState("professor", "Professor", PersonRole.PROFESSOR))
     room = RoomApp(world)
@@ -122,6 +120,34 @@ def test_capacity_and_capability_rules_are_deterministic() -> None:
     assert _create(schedule, required_capabilities=["audio"])["reason"] == (
         "missing_room_capabilities"
     )
+
+
+def test_non_bookable_office_is_excluded_and_rejected() -> None:
+    world, room, _, schedule = _apps()
+    world.add_room(
+        RoomSpec(
+            "office-01",
+            "Fixed Office",
+            17,
+            frozenset({"fixed_workstations"}),
+            room_type="graduate_office",
+            bookable=False,
+        )
+    )
+
+    available = room.find_available_rooms(START_AT, END_AT, 2, [])
+    rejected = _create(
+        schedule,
+        room_id="office-01",
+        required_capabilities=[],
+    )
+
+    assert {item["room_id"] for item in available["available_rooms"]} == {"room-01"}
+    assert rejected == {
+        "status": "rejected",
+        "reason": "room_not_bookable",
+        "room_id": "office-01",
+    }
 
 
 def test_snapshot_restore_preserves_meeting_and_id_sequence() -> None:

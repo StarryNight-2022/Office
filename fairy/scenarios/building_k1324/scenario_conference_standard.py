@@ -1,4 +1,4 @@
-"""Normal K1324 conference lifecycle with environment preparation."""
+"""Normal K1315 conference lifecycle with environment preparation."""
 
 from __future__ import annotations
 
@@ -36,19 +36,20 @@ from fairy.scenarios.registry import register_scenario
 from fairy.scenarios.validation_result import ScenarioValidationResult
 from fairy.types import EventRegisterer
 
-ZONE_ID = "k1324_meeting_zone"
+ROOM_ID = "k1315"
+ZONE_ID = "k1315_conference_zone"
 MEETING_ID = "conference-standard-001"
 RESERVATION_ID = "conference-standard-reservation-001"
 
 
 @register_scenario("scenario_building_k1324_conference_standard")
 class ScenarioBuildingK1324ConferenceStandard(K1324BuildingScenario):
-    """Prepare, host and close a scheduled conference without exceptions."""
+    """Prepare, host and close a scheduled K1315 conference without exceptions."""
 
     start_time: float | None = local_timestamp(2026, 9, 10, 9)
     time_increment_in_seconds: int = 60
     scenario_input = """
-K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开始准备：
+K1315 会议室将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开始准备：
 打印 12 份、每份 2 页的会议材料，开启独立通风、制冷和空气净化，设置演示区及
 观众区灯光，准备投影与麦克风音响。会前检查打印任务、会议设备和环境读数。
 会议正常结束后关闭所有本次启用的设备。不得跳过物理等待，也不得把设备命令被
@@ -62,7 +63,7 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
         end = datetime(2026, 9, 10, 11, 0, tzinfo=CST)
         world.reservations[RESERVATION_ID] = ResourceReservation(
             reservation_id=RESERVATION_ID,
-            resource_id="k1324",
+            resource_id=ROOM_ID,
             owner_id=MEETING_ID,
             start_at=start,
             end_at=end,
@@ -70,7 +71,7 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
         world.add_schedule_entry(
             ScheduleEntry(
                 meeting_id=MEETING_ID,
-                room_id="k1324",
+                room_id=ROOM_ID,
                 organizer_id="staff-01",
                 participant_ids=("professor-01",),
                 start_at=start,
@@ -89,14 +90,14 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
                     datetime(2026, 9, 10, 9, 15, tzinfo=CST),
                     BuildingEventType.MEETING_PREPARATION_DUE,
                     MEETING_ID,
-                    {"room_id": "k1324"},
+                    {"room_id": ROOM_ID},
                 ),
                 MeetingPhase(
                     "conference-arrival",
                     datetime(2026, 9, 10, 9, 45, tzinfo=CST),
                     BuildingEventType.OCCUPANCY_CHANGED,
-                    "k1324",
-                    {"room_id": "k1324", "occupancy_count": 12},
+                    ROOM_ID,
+                    {"room_id": ROOM_ID, "occupancy_count": 12},
                 ),
                 MeetingPhase(
                     "conference-start",
@@ -144,32 +145,32 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
                 .depends_on(wait_for_preparation, delay_seconds=1)
             )
             start_ventilation = (
-                ventilation.set_ventilation("k1324_ventilation_01", True, 3)
+                ventilation.set_ventilation("k1315_ventilation_01", True, 3)
                 .oracle()
                 .with_id("start_conference_ventilation")
                 .depends_on(initial_environment, delay_seconds=1)
             )
             start_hvac = (
-                hvac.set_hvac("k1324_hvac_01", True, "cooling", 24.0, 3)
+                hvac.set_hvac("k1315_hvac_01", True, "cooling", 24.0, 3)
                 .oracle()
                 .with_id("start_conference_hvac")
                 .depends_on(start_ventilation, delay_seconds=1)
             )
             start_purifier = (
-                air.set_air_purifier("k1324_purifier_01", True, 2)
+                air.set_air_purifier("k1315_purifier_01", True, 2)
                 .oracle()
                 .with_id("start_conference_purifier")
                 .depends_on(start_hvac, delay_seconds=1)
             )
             printer_on = (
-                printing.set_printer_power("k1324_printer_01", True)
+                printing.set_printer_power("k1315_printer_01", True)
                 .oracle()
                 .with_id("power_on_conference_printer")
                 .depends_on(start_purifier, delay_seconds=1)
             )
             submit_materials = (
                 printing.submit_print_job(
-                    "k1324_printer_01", "conference_materials", 12, 2, "staff-01"
+                    "k1315_printer_01", "conference_materials", 12, 2, "staff-01"
                 )
                 .oracle()
                 .with_id("print_conference_materials")
@@ -177,7 +178,7 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
             )
             set_front_lighting = (
                 lighting.set_lighting(
-                    "k1324_lighting_front_01", True, 45, 4000, "presentation"
+                    "k1315_lighting_front_01", True, 45, 4000, "presentation"
                 )
                 .oracle()
                 .with_id("set_presentation_lighting")
@@ -185,20 +186,20 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
             )
             set_audience_lighting = (
                 lighting.set_lighting(
-                    "k1324_lighting_audience_01", True, 70, 4000, "conference"
+                    "k1315_lighting_audience_01", True, 70, 4000, "conference"
                 )
                 .oracle()
                 .with_id("set_audience_lighting")
                 .depends_on(set_front_lighting, delay_seconds=1)
             )
             start_projector = (
-                equipment.set_projector("k1324_projector_01", True, "hdmi")
+                equipment.set_projector("k1315_projector_01", True, "hdmi")
                 .oracle()
                 .with_id("prepare_projector")
                 .depends_on(set_audience_lighting, delay_seconds=1)
             )
             start_audio = (
-                equipment.set_audio_system("k1324_audio_01", True, 55, True)
+                equipment.set_audio_system("k1315_audio_01", True, 55, True)
                 .oracle()
                 .with_id("prepare_audio_and_microphone")
                 .depends_on(start_projector, delay_seconds=1)
@@ -222,7 +223,7 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
                 .depends_on(print_check, delay_seconds=1)
             )
             equipment_check = (
-                equipment.get_meeting_equipment_readiness("k1324")
+                equipment.get_meeting_equipment_readiness(ROOM_ID)
                 .oracle()
                 .with_id("verify_meeting_equipment")
                 .depends_on(before_meeting, delay_seconds=1)
@@ -252,58 +253,58 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
                 .depends_on(run_meeting, delay_seconds=1)
             )
             stop_hvac = (
-                hvac.set_hvac("k1324_hvac_01", False, "off", 24.0, 0)
+                hvac.set_hvac("k1315_hvac_01", False, "off", 24.0, 0)
                 .oracle()
                 .with_id("stop_conference_hvac")
                 .depends_on(end_reading, delay_seconds=1)
             )
             stop_purifier = (
-                air.set_air_purifier("k1324_purifier_01", False, 0)
+                air.set_air_purifier("k1315_purifier_01", False, 0)
                 .oracle()
                 .with_id("stop_conference_purifier")
                 .depends_on(stop_hvac, delay_seconds=1)
             )
             stop_ventilation = (
-                ventilation.set_ventilation("k1324_ventilation_01", False, 0)
+                ventilation.set_ventilation("k1315_ventilation_01", False, 0)
                 .oracle()
                 .with_id("stop_conference_ventilation")
                 .depends_on(stop_purifier, delay_seconds=1)
             )
             stop_projector = (
-                equipment.set_projector("k1324_projector_01", False, "off")
+                equipment.set_projector("k1315_projector_01", False, "off")
                 .oracle()
                 .with_id("stop_projector")
                 .depends_on(stop_ventilation, delay_seconds=1)
             )
             stop_audio = (
-                equipment.set_audio_system("k1324_audio_01", False, 0, False)
+                equipment.set_audio_system("k1315_audio_01", False, 0, False)
                 .oracle()
                 .with_id("stop_audio")
                 .depends_on(stop_projector, delay_seconds=1)
             )
             stop_front_lighting = (
-                lighting.set_lighting("k1324_lighting_front_01", False, 0, 4000, "off")
+                lighting.set_lighting("k1315_lighting_front_01", False, 0, 4000, "off")
                 .oracle()
                 .with_id("stop_presentation_lighting")
                 .depends_on(stop_audio, delay_seconds=1)
             )
             stop_audience_lighting = (
                 lighting.set_lighting(
-                    "k1324_lighting_audience_01", False, 0, 4000, "off"
+                    "k1315_lighting_audience_01", False, 0, 4000, "off"
                 )
                 .oracle()
                 .with_id("stop_audience_lighting")
                 .depends_on(stop_front_lighting, delay_seconds=1)
             )
             printer_off = (
-                printing.set_printer_power("k1324_printer_01", False)
+                printing.set_printer_power("k1315_printer_01", False)
                 .oracle()
                 .with_id("power_off_conference_printer")
                 .depends_on(stop_audience_lighting, delay_seconds=1)
             )
             report = (
                 aui.send_message_to_user(
-                    content="K1324 标准会议已正常结束，环境设备已关闭，房间资源已释放。"
+                    content="K1315 标准会议已正常结束，环境设备已关闭，房间资源已释放。"
                 )
                 .oracle()
                 .with_id("report_conference_complete")
@@ -317,14 +318,14 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
         meeting = world.schedule[MEETING_ID]
         reservation = world.reservations[RESERVATION_ID]
         controlled_device_ids = (
-            "k1324_hvac_01",
-            "k1324_purifier_01",
-            "k1324_ventilation_01",
-            "k1324_projector_01",
-            "k1324_audio_01",
-            "k1324_lighting_front_01",
-            "k1324_lighting_audience_01",
-            "k1324_printer_01",
+            "k1315_hvac_01",
+            "k1315_purifier_01",
+            "k1315_ventilation_01",
+            "k1315_projector_01",
+            "k1315_audio_01",
+            "k1315_lighting_front_01",
+            "k1315_lighting_audience_01",
+            "k1315_printer_01",
         )
         all_devices_off = all(
             not world.device_states[device_id].power_on
@@ -347,7 +348,7 @@ K1324 将在今天 10:00 至 11:00 举行 12 人正式会议。请在 09:15 开�
         success = (
             meeting.status == MeetingStatus.COMPLETED
             and reservation.status == ReservationStatus.RELEASED
-            and world.room_states["k1324"].occupancy_count == 0
+            and world.room_states[ROOM_ID].occupancy_count == 0
             and all_devices_off
             and print_job.get("status") == "completed"
             and completed_on_time

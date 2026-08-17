@@ -1,4 +1,4 @@
-# K1324 Scenarios
+# Building Rooms 与现有 Scenarios
 
 完整代码架构和跨层数据流见：
 
@@ -9,7 +9,7 @@
 | Scenario ID | 文件 | 目标 |
 |---|---|---|
 | `scenario_building_k1324_meeting_booking` | `scenario_meeting_booking.py` | 首选房冲突后选择合法替代房并完成预约 |
-| `scenario_building_k1324_conference_standard` | `scenario_conference_standard.py` | 环境预处理、材料打印、灯光/投影音响准备、人员到场、会议运行与完整关机 |
+| `scenario_building_k1324_conference_standard` | `scenario_conference_standard.py` | 在 K1315 执行环境预处理、材料打印、会议设备准备与完整关机 |
 | `scenario_building_k1324_climate_coordination` | `scenario_climate_coordination.py` | 通过物理等待和传感器反馈协调空调与加湿器 |
 | `scenario_building_k1324_occupancy_ramp` | `scenario_occupancy_ramp.py` | 人数分批进入/离开时的 CO₂ 演化与空房恢复 |
 
@@ -24,14 +24,15 @@
 
 测试应先运行 Oracle → Replay → Validate，以区分框架/物理问题和 LLM 决策问题。
 
-新增场景应继承 `K1324BuildingScenario`，只覆盖差异化初始状态、任务、
-`build_events_flow()` 和验证逻辑。基类会从 `configs/rooms/k1324.yaml` 装配房间、
-设备、物理、模拟传感器和统一 Runtime。房间冲突、容量、设备能力、人员日程及权限
+新增场景暂时仍继承兼容名称 `K1324BuildingScenario`，只覆盖差异化初始状态、任务、
+`build_events_flow()` 和验证逻辑。基类会从 `configs/rooms/k1324.yaml`、
+`k1316.yaml`、`k1315.yaml` 装配三个房间、设备、物理、模拟传感器和统一 Runtime。
+房间冲突、容量、可预约性、设备能力、人员日程及权限
 规则应修改对应 App，不应复制到 Scenario。
 
 ## 标准会议的双层执行链
 
-`scenario_conference_standard.py` 当前会依次执行：初始传感器观测 → 独立通风 →
+`scenario_conference_standard.py` 当前在 K1315 依次执行：初始传感器观测 → 独立通风 →
 HVAC/净化器 → 打印材料 → 分区灯光 → 投影/音响 → 推进 30 分钟 → 检查打印与
 设备 readiness → 会前环境复测 → 会议开始/运行 → 会末观测 → 关闭八类受控设备。
 通风通过物理模型改变室外风量，灯光和会议设备通过额定功率进入室内热负荷与能耗。

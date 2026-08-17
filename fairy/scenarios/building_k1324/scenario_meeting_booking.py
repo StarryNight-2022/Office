@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from fairy.apps.agent_user_interface import AgentUserInterface
 from fairy.apps.building_world import (
     BuildingWorldApp,
     OccupancyApp,
@@ -10,7 +11,6 @@ from fairy.apps.building_world import (
 )
 from fairy.apps.building_world.datetime_utils import parse_datetime
 from fairy.apps.building_world.types import MeetingStatus, ScheduleEntry
-from fairy.apps.agent_user_interface import AgentUserInterface
 from fairy.scenarios.building_k1324.base import (
     K1324BuildingScenario,
     collect_event_graph,
@@ -20,14 +20,13 @@ from fairy.scenarios.registry import register_scenario
 from fairy.scenarios.validation_result import ScenarioValidationResult
 from fairy.types import EventRegisterer
 
-
 START_AT = "2026-09-10T14:00:00+08:00"
 END_AT = "2026-09-10T15:00:00+08:00"
 
 
 @register_scenario("scenario_building_k1324_meeting_booking")
 class ScenarioBuildingK1324MeetingBooking(K1324BuildingScenario):
-    """Book a professor consultation after discovering K1324 is occupied."""
+    """Book a professor consultation after discovering K1315 is occupied."""
 
     # Scenario's dataclass-default migration reads concrete-class attributes,
     # so repeat inherited clock defaults here until Scenario supports MRO lookup.
@@ -35,7 +34,7 @@ class ScenarioBuildingK1324MeetingBooking(K1324BuildingScenario):
     time_increment_in_seconds: int = 60
     scenario_input = """
 学生 student-01 希望与 professor-01 在 2026-09-10 14:00 至 15:00 开会，
-预计共 6 人，需要投影设备，首选 K1324。
+预计共 6 人，需要投影设备，首选 K1315 会议室。K1324 是固定办公室，不可预约。
 
 请先确认教授是否在校并检查其日程，再检查满足容量和投影要求的可用房间。
 如果首选房间冲突，请选择满足条件的其他房间并完成预约。不得覆盖已有会议。
@@ -45,12 +44,12 @@ class ScenarioBuildingK1324MeetingBooking(K1324BuildingScenario):
     def initiate_scenario(self) -> None:
         super().initiate_scenario()
         world = self.get_typed_app(BuildingWorldApp)
-        # The preferred room overlaps the requested interval.  K1316 is the
+        # The preferred K1315 meeting room overlaps the requested interval. K1316 is the
         # only alternative satisfying both capacity and projector constraints.
         world.add_schedule_entry(
             ScheduleEntry(
                 meeting_id="existing-001",
-                room_id="k1324",
+                room_id="k1315",
                 organizer_id="staff-01",
                 participant_ids=(),
                 start_at=parse_datetime("2026-09-10T13:30:00+08:00"),
