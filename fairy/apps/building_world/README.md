@@ -49,8 +49,9 @@ BuildingWorldRuntime                         |  Sensor Adapter
 ```
 
 当前会议预约与环境感知均已装配到 `K1324BuildingScenario`。设备命令可通过
-`BuildingWorldRuntime` 在 `SystemApp.advance_time()` 后形成物理效果和模拟观测；尚未
-完成的是 Event Queue、Trigger Policy 和 Conference 长时自适应控制循环。
+`BuildingWorldRuntime` 在 `SystemApp.advance_time()` 后形成物理效果和模拟观测；
+Event Queue 和第一版 Trigger Policy 已接入 Runtime，尚未完成的是 Building ARE
+Controller、Agent 唤醒执行和 Conference 长时自适应控制循环。
 
 ## 2. 分层职责
 
@@ -353,15 +354,15 @@ BuildingWorldRuntime.snapshot()
 
 1. **预约成功不会自动决定何时启动空调**：仍缺 Trigger Policy/Agent 决策；
 2. **灯光、打印机和门禁仅有配置，尚无控制 App**；
-3. **没有 Building Event Queue、Trigger Policy 或 Building ARE Controller**；
+3. **已有 Building Event Queue 和 Trigger Policy，但尚无 Building ARE Controller**；
 4. **真实 MQTT 连接、认证和重连客户端未实现，仅实现消息 Adapter**；
 5. **Agent Builder 尚无 Building 专用 system prompt/family**；
 6. **真实 Provider 缓存尚未纳入 Runtime checkpoint**，纯模拟缓存已支持。
 
 ## 10. 推荐的下一步整合目标
 
-统一 Runtime 已实现基本时间推进。下一阶段应在其上增加 Event Queue 和 Trigger
-Policy，而不是让 Scenario 直接协调突发事件：
+统一 Runtime 已实现按事件边界推进。`BuildingEventQueue` 保存尚未发生的事件，
+`BuildingTriggerPolicy` 对已经发生的领域事件生成可审计的 `TriggerDecision`：
 
 ```python
 class BuildingWorldRuntime:
@@ -379,6 +380,18 @@ class BuildingWorldRuntime:
         # 5. Trigger Policy 决定是否唤醒 Agent
         ...
 ```
+
+当前实现保证：
+
+- 未来事件在执行时刻之前不会出现在 `BuildingWorldApp.events`；
+- 事件落在物理步中间时，Runtime 会在事件时间切开该物理步；
+- 相同时间的事件按稳定 sequence 执行；
+- 普通 `SENSOR_UPDATED` 事件被记录但不会唤醒 Agent；
+- 日程取消、设备故障、人工覆盖和环境阈值越界会请求唤醒；
+- Queue、事件分类游标和决策 trace 均包含在 Runtime checkpoint 中。
+
+下一阶段由 `BuildingAREController` 消费 `RuntimeAdvanceResult.trigger_decisions`，
+构造 Agent 上下文并执行 Tool Calls。Trigger Policy 不应直接依赖或调用 LLM。
 
 届时 Conference 场景的数据流应是：
 

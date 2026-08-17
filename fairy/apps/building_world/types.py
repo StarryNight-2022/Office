@@ -42,6 +42,8 @@ class BuildingEventType(str, Enum):
     SCHEDULE_CREATED = "schedule_created"
     SCHEDULE_CHANGED = "schedule_changed"
     SCHEDULE_CANCELLED = "schedule_cancelled"
+    MEETING_DELAYED = "meeting_delayed"
+    MEETING_ENDED_EARLY = "meeting_ended_early"
     RESOURCE_RESERVED = "resource_reserved"
     RESOURCE_RELEASED = "resource_released"
     PERSON_ARRIVED = "person_arrived"

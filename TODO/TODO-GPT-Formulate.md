@@ -272,10 +272,10 @@ fairy/
 
 - [ ] 扩展 `TimeManager` 支持分钟级推进。
 - [ ] 保留原有农业逐日接口和行为，避免破坏现有场景。
-- [ ] 增加 `advance_to(timestamp)`。
-- [ ] 增加下一事件时间查询。
-- [ ] 支持暂停、恢复、快进、snapshot 和 replay。
-- [ ] 处理物理时间步与事件时间不对齐的问题。
+- [x] 增加 `advance_to(timestamp)`。
+- [x] 增加下一事件时间查询。（由 BuildingEventQueue 提供）
+- [ ] 支持暂停、恢复、快进、snapshot 和 replay。（Runtime snapshot/replay 已完成）
+- [x] 处理物理时间步与事件时间不对齐的问题。
 
 ## 8. Everything-is-Event Runtime
 
@@ -289,19 +289,19 @@ fairy/
 
 ### 8.2 Event Queue
 
-- [ ] 新增 `event_queue.py`。
-- [ ] 按仿真时间调度未来事件。
+- [x] 新增 `event_queue.py`。
+- [x] 按仿真时间调度未来事件。
 - [ ] 支持运行时插入、修改和取消事件。
-- [ ] 支持相同事件序列的确定性重放。
+- [x] 支持相同事件序列的确定性重放。
 
 ### 8.3 Trigger Policy
 
-- [ ] 新增 `trigger_policy.py`。
-- [ ] 定义必须唤醒 Agent 的重要事件集合。
-- [ ] 定义温湿度、空气质量和设备故障阈值触发。
+- [x] 新增 `trigger_policy.py`。
+- [x] 定义必须唤醒 Agent 的重要事件集合。
+- [x] 定义温湿度、空气质量和设备故障阈值触发。
 - [ ] 判断当前计划前提是否被事件破坏。
-- [ ] 普通周期传感器更新不得默认调用 LLM。
-- [ ] 记录每次“唤醒/不唤醒”决策，供后续 Router 和论文分析使用。
+- [x] 普通周期传感器更新不得默认调用 LLM。
+- [x] 记录每次“唤醒/不唤醒”决策，供后续 Router 和论文分析使用。
 
 ### 8.4 Building ARE Controller
 

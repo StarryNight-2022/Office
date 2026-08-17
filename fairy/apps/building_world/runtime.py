@@ -10,9 +10,18 @@ from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.room_loader import LoadedRoomConfiguration
 from fairy.apps.building_world.sensor_hub import SensorHub
 from fairy.apps.building_world.types import (
+    BuildingEvent,
     BuildingEventType,
     DeviceHealth,
     DeviceType,
+)
+from fairy.controllers.building.event_queue import (
+    BuildingEventQueue,
+    ScheduledBuildingEvent,
+)
+from fairy.controllers.building.trigger_policy import (
+    BuildingTriggerPolicy,
+    TriggerDecision,
 )
 from fairy.physics.building.equipment_model import BuildingEquipmentModel
 from fairy.physics.building.indoor_environment_engine import IndoorEnvironmentEngine
@@ -25,6 +34,7 @@ from fairy.physics.building.orchestrator import (
 )
 
 OutdoorProvider = Callable[[datetime], OutdoorConditions]
+ScheduledEventHandler = Callable[[ScheduledBuildingEvent, BuildingWorldApp], None]
 
 
 @dataclass(frozen=True)
@@ -34,6 +44,8 @@ class RuntimeAdvanceResult:
     started_at: datetime
     ended_at: datetime
     steps: tuple[BuildingPhysicsStepResult, ...]
+    processed_events: tuple[BuildingEvent, ...] = ()
+    trigger_decisions: tuple[TriggerDecision, ...] = ()
 
 
 class BuildingWorldRuntime:
@@ -48,6 +60,8 @@ class BuildingWorldRuntime:
         start_at: datetime,
         outdoor_provider: OutdoorProvider,
         equipment_model: BuildingEquipmentModel | None = None,
+        event_queue: BuildingEventQueue | None = None,
+        trigger_policy: BuildingTriggerPolicy | None = None,
         max_timestep_seconds: float = 300.0,
     ) -> None:
         if start_at.tzinfo is None:
@@ -60,8 +74,17 @@ class BuildingWorldRuntime:
         self.current_time = start_at
         self.outdoor_provider = outdoor_provider
         self.equipment_model = equipment_model or BuildingEquipmentModel()
+        self.event_queue = event_queue or BuildingEventQueue()
+        self.trigger_policy = trigger_policy or BuildingTriggerPolicy()
         self.max_timestep_seconds = float(max_timestep_seconds)
         self.trace: list[dict[str, object]] = []
+        # Handlers apply external facts to canonical state before those facts
+        # are published.  Scenario-specific callbacks stay outside the queue,
+        # keeping the queue serializable and replay-stable.
+        self._event_handlers: dict[
+            BuildingEventType, list[ScheduledEventHandler]
+        ] = {}
+        self._world_event_cursor = len(self.world.events)
 
     @classmethod
     def from_room_configuration(
@@ -102,6 +125,49 @@ class BuildingWorldRuntime:
             raise ValueError("advance duration must be positive")
         return self.advance_to(self.current_time + timedelta(seconds=seconds))
 
+    def schedule_event(
+        self,
+        *,
+        execute_at: datetime,
+        event_type: BuildingEventType,
+        source: str,
+        subject_id: str,
+        payload: Mapping[str, object] | None = None,
+        parent_event_id: str | None = None,
+        scheduled_id: str | None = None,
+    ) -> ScheduledBuildingEvent:
+        """Schedule a future fact without publishing it ahead of simulation time."""
+
+        if execute_at.tzinfo is None:
+            raise ValueError("execute_at must be timezone-aware")
+        if execute_at < self.current_time:
+            raise ValueError("cannot schedule a building event in the past")
+        return self.event_queue.schedule(
+            execute_at=execute_at,
+            event_type=event_type,
+            source=source,
+            subject_id=subject_id,
+            payload=payload,
+            parent_event_id=parent_event_id,
+            scheduled_id=scheduled_id,
+        )
+
+    def cancel_scheduled_event(self, scheduled_id: str) -> bool:
+        """Cancel an event that has not yet become a domain fact."""
+
+        return self.event_queue.cancel(scheduled_id)
+
+    def register_event_handler(
+        self,
+        event_type: BuildingEventType,
+        handler: ScheduledEventHandler,
+    ) -> None:
+        """Register deterministic state application for one external event type."""
+
+        handlers = self._event_handlers.setdefault(event_type, [])
+        if handler not in handlers:
+            handlers.append(handler)
+
     def advance_to(self, target_time: datetime) -> RuntimeAdvanceResult:
         if target_time.tzinfo is None:
             raise ValueError("target_time must be timezone-aware")
@@ -109,9 +175,29 @@ class BuildingWorldRuntime:
             raise ValueError("target_time must be later than current runtime time")
         started_at = self.current_time
         steps: list[BuildingPhysicsStepResult] = []
-        while self.current_time < target_time:
+        processed_events: list[BuildingEvent] = []
+        trigger_decisions: list[TriggerDecision] = []
+        while True:
+            # Consume events exactly at the current boundary before choosing
+            # the next physics interval.  This also handles events scheduled
+            # for the final target timestamp.
+            self._consume_due_events()
+            events, decisions = self._classify_new_world_events()
+            processed_events.extend(events)
+            trigger_decisions.extend(decisions)
+            if self.current_time >= target_time:
+                break
             remaining = (target_time - self.current_time).total_seconds()
             timestep = min(self.max_timestep_seconds, remaining)
+            next_event_time = self.event_queue.next_time()
+            if next_event_time is not None:
+                seconds_to_event = (next_event_time - self.current_time).total_seconds()
+                if seconds_to_event < 0.0:
+                    raise RuntimeError("event queue returned an event in the past")
+                timestep = min(timestep, seconds_to_event)
+            if timestep <= 0.0:
+                # A due event will be consumed at the top of the next loop.
+                continue
             step_at = self.current_time + timedelta(seconds=timestep)
             truth = self.physics.engine.get_state()
             commands = self.equipment_model.commands_by_zone(
@@ -128,7 +214,13 @@ class BuildingWorldRuntime:
             self._publish_step_events(step)
             self._record_trace(step)
             steps.append(step)
-        return RuntimeAdvanceResult(started_at, self.current_time, tuple(steps))
+        return RuntimeAdvanceResult(
+            started_at,
+            self.current_time,
+            tuple(steps),
+            tuple(processed_events),
+            tuple(trigger_decisions),
+        )
 
     def snapshot(self) -> dict[str, object]:
         return {
@@ -136,6 +228,8 @@ class BuildingWorldRuntime:
             "world": self.world.snapshot(),
             "physics": self.physics.snapshot(),
             "sensors": self.sensors.snapshot(),
+            "event_queue": self.event_queue.snapshot(),
+            "world_event_cursor": self._world_event_cursor,
             "trace": list(self.trace),
         }
 
@@ -146,8 +240,49 @@ class BuildingWorldRuntime:
         self.world.restore(snapshot["world"])  # type: ignore[arg-type]
         self.physics.restore(snapshot["physics"])  # type: ignore[arg-type]
         self.sensors.restore(snapshot["sensors"])  # type: ignore[arg-type]
+        self.event_queue.restore(snapshot.get("event_queue", {}))  # type: ignore[arg-type]
         self.current_time = current_time
+        self._world_event_cursor = int(
+            snapshot.get("world_event_cursor", len(self.world.events))
+        )
+        if not 0 <= self._world_event_cursor <= len(self.world.events):
+            raise ValueError("runtime snapshot has invalid world_event_cursor")
         self.trace = list(snapshot.get("trace", []))  # type: ignore[arg-type]
+
+    def _consume_due_events(self) -> None:
+        """Apply and publish all scheduled facts due at the current time."""
+
+        for scheduled in self.event_queue.pop_due(self.current_time):
+            for handler in self._event_handlers.get(scheduled.event_type, []):
+                handler(scheduled, self.world)
+            self.world.publish_building_event(
+                scheduled.event_type,
+                source=scheduled.source,
+                subject_id=scheduled.subject_id,
+                payload=dict(scheduled.payload),
+                parent_event_id=scheduled.parent_event_id,
+                occurred_at=scheduled.execute_at,
+            )
+
+    def _classify_new_world_events(
+        self,
+    ) -> tuple[list[BuildingEvent], list[TriggerDecision]]:
+        """Classify each newly published event exactly once and audit the result."""
+
+        events = list(self.world.events[self._world_event_cursor :])
+        decisions = [self.trigger_policy.decide(event) for event in events]
+        self._world_event_cursor = len(self.world.events)
+        for decision in decisions:
+            self.trace.append(
+                {
+                    "kind": "trigger_decision",
+                    "event_id": decision.event_id,
+                    "event_type": decision.event_type.value,
+                    "should_wake_agent": decision.should_wake_agent,
+                    "reason": decision.reason,
+                }
+            )
+        return events, decisions
 
     def _loads_by_zone(self) -> dict[str, InternalLoads]:
         located_people: dict[str, int] = {zone_id: 0 for zone_id in self.world.zones}
@@ -222,6 +357,7 @@ class BuildingWorldRuntime:
     def _record_trace(self, step: BuildingPhysicsStepResult) -> None:
         self.trace.append(
             {
+                "kind": "physics_step",
                 "at_time": step.at_time.isoformat(),
                 "zones": [
                     {
