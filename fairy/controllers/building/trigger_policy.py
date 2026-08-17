@@ -28,6 +28,9 @@ class BuildingTriggerPolicy:
             BuildingEventType.MANUAL_OVERRIDE,
             BuildingEventType.COMFORT_THRESHOLD_VIOLATED,
             BuildingEventType.AIR_QUALITY_THRESHOLD_VIOLATED,
+            BuildingEventType.MEETING_PREPARATION_DUE,
+            BuildingEventType.MEETING_ENDED,
+            BuildingEventType.ENVIRONMENT_CHECK_DUE,
             BuildingEventType.MEETING_DELAYED,
             BuildingEventType.MEETING_ENDED_EARLY,
         }
@@ -40,6 +43,7 @@ class BuildingTriggerPolicy:
             BuildingEventType.RESOURCE_RESERVED,
             BuildingEventType.RESOURCE_RELEASED,
             BuildingEventType.THRESHOLD_RECOVERED,
+            BuildingEventType.MEETING_STARTED,
         }
     )
 

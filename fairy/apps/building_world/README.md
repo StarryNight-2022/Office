@@ -74,6 +74,10 @@ App 或 Physics，否则换一个场景就会复制业务逻辑。
 
 - `base.py`：K1324 房间、人员及 App 组装；
 - `scenario_meeting_booking.py`：首选 K1324 冲突后预约 K1316。
+- `meeting_lifecycle.py`：正常会议阶段、占用变化和会后资源释放；
+- `scenario_conference_standard.py`：标准会议完整生命周期；
+- `scenario_climate_coordination.py`：空调与加湿器的观测反馈协同；
+- `scenario_occupancy_ramp.py`：计划人数变化下的 CO₂ 响应。
 
 ### 2.2 App 层
 

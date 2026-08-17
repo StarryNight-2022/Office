@@ -330,6 +330,9 @@ fairy/
 ## 10. Conference L1 场景
 
 - [ ] 新增 `scenarios/building_k1324/conference_l1.py`。
+- [x] 新增无异常条件的 `scenario_conference_standard.py`，跑通正常会议生命周期。
+- [x] 新增 `scenario_climate_coordination.py`，验证空调—湿度—加湿器正常联动。
+- [x] 新增 `scenario_occupancy_ramp.py`，验证人数—CO₂—通风正常演化。
 - [ ] 设置 K1324 初始环境、设备、人员和正式会议日程。
 - [ ] T-60 min：会议进入准备阶段。
 - [ ] T-45 min：根据预测到达时间开始环境预调。
