@@ -4,7 +4,8 @@ import inspect
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, get_type_hints
+from types import UnionType
+from typing import Any, Callable, Literal, Union, get_args, get_origin, get_type_hints
 
 
 class OperationType(Enum):
@@ -23,6 +24,7 @@ class ToolAttributeName(Enum):
 class AppToolArg:
     name: str
     arg_type: str
+    json_schema: dict[str, Any] | None = None
     description: str | None = None
     has_default: bool = False
     default: Any | None = None
@@ -44,7 +46,10 @@ class AppTool:
 
     def to_open_ai(self) -> dict[str, Any]:
         properties = {
-            arg.name: {"type": _json_type(arg.arg_type), "description": arg.description or ""}
+            arg.name: {
+                **(arg.json_schema or {"type": _json_type(arg.arg_type)}),
+                "description": arg.description or "",
+            }
             for arg in self.args
         }
         required = [arg.name for arg in self.args if not arg.has_default]
@@ -66,6 +71,44 @@ def _json_type(type_name: str) -> str:
     return {"str": "string", "int": "integer", "float": "number", "bool": "boolean"}.get(
         type_name, "string"
     )
+
+
+def _json_schema(type_obj: Any) -> dict[str, Any]:
+    """Translate Python annotations into the subset used by Tool Calling.
+
+    Generic aliases such as ``list[str]`` do not have one of the primitive
+    names handled by ``_json_type``.  Treating them as strings makes models
+    emit comma-separated text, which business code then iterates character by
+    character.  Preserve container structure explicitly in the JSON Schema.
+    """
+
+    origin = get_origin(type_obj)
+    args = get_args(type_obj)
+    if origin in {list, tuple, set, frozenset}:
+        item_type = args[0] if args else str
+        return {"type": "array", "items": _json_schema(item_type)}
+    if origin is Literal:
+        values = list(args)
+        primitive = type(values[0]) if values else str
+        return {**_json_schema(primitive), "enum": values}
+    if origin in {Union, UnionType}:
+        non_none = [item for item in args if item is not type(None)]
+        if len(non_none) == 1:
+            return _json_schema(non_none[0])
+        return {"anyOf": [_json_schema(item) for item in non_none]}
+    if inspect.isclass(type_obj) and issubclass(type_obj, Enum):
+        return {
+            "type": "string",
+            "enum": [item.value for item in type_obj],
+        }
+    primitive_types = {
+        str: "string",
+        int: "integer",
+        float: "number",
+        bool: "boolean",
+        dict: "object",
+    }
+    return {"type": primitive_types.get(type_obj, "string")}
 
 
 def _mark_tool(attr: ToolAttributeName, func: Callable[..., Any] | None = None):
@@ -116,6 +159,7 @@ def build_tool(instance: Any, func: Callable[..., Any], failure_probability=None
             AppToolArg(
                 name=name,
                 arg_type=type_name,
+                json_schema=_json_schema(type_obj),
                 has_default=param.default is not inspect._empty,
                 default=None if param.default is inspect._empty else param.default,
             )

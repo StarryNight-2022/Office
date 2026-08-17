@@ -13,6 +13,7 @@ from fairy.apps.building_world.types import (
     RoomSpec,
 )
 from fairy.controllers.engine import Engine
+from fairy.agents.agent.toolset_builder import build_toolset
 from fairy.scenarios.building_k1324.scenario_meeting_booking import (
     END_AT,
     START_AT,
@@ -63,6 +64,24 @@ def test_create_meeting_reserves_room_and_emits_causal_events() -> None:
         BuildingEventType.SCHEDULE_CREATED,
     ]
     assert world.events[1].parent_event_id == world.events[0].event_id
+
+
+def test_meeting_tool_schema_preserves_string_array_arguments() -> None:
+    """Remote models must see list[str] as JSON arrays, not strings."""
+
+    _, _, _, schedule = _apps()
+    _, schemas, _ = build_toolset([schedule])
+    create_schema = next(
+        item
+        for item in schemas
+        if item["function"]["name"] == "ScheduleApp__create_meeting"
+    )
+    properties = create_schema["function"]["parameters"]["properties"]
+
+    assert properties["participant_ids"]["type"] == "array"
+    assert properties["participant_ids"]["items"] == {"type": "string"}
+    assert properties["required_capabilities"]["type"] == "array"
+    assert properties["required_capabilities"]["items"] == {"type": "string"}
 
 
 def test_conflicting_meeting_is_rejected_without_leaking_reservation() -> None:
