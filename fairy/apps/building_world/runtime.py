@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Mapping
 
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.room_loader import LoadedRoomConfiguration
@@ -81,9 +81,7 @@ class BuildingWorldRuntime:
         # Handlers apply external facts to canonical state before those facts
         # are published.  Scenario-specific callbacks stay outside the queue,
         # keeping the queue serializable and replay-stable.
-        self._event_handlers: dict[
-            BuildingEventType, list[ScheduledEventHandler]
-        ] = {}
+        self._event_handlers: dict[BuildingEventType, list[ScheduledEventHandler]] = {}
         self._world_event_cursor = len(self.world.events)
 
     @classmethod
@@ -96,7 +94,7 @@ class BuildingWorldRuntime:
         world: BuildingWorldApp | None = None,
         observation_seed: int = 0,
         max_timestep_seconds: float = 300.0,
-    ) -> "BuildingWorldRuntime":
+    ) -> BuildingWorldRuntime:
         world = world or BuildingWorldApp()
         configuration.install_into(world)
         sensors = SensorHub(configuration.zone_parameters)
@@ -317,9 +315,15 @@ class BuildingWorldRuntime:
                         DeviceType.HVAC,
                         DeviceType.HUMIDIFIER,
                         DeviceType.AIR_PURIFIER,
+                        DeviceType.VENTILATION,
                     }
                 ):
-                    equipment_power += spec.rated_power_w
+                    power_fraction = 1.0
+                    if spec.device_type == DeviceType.LIGHTING:
+                        power_fraction = (
+                            float(state.settings.get("brightness_pct", 100.0)) / 100.0
+                        )
+                    equipment_power += spec.rated_power_w * power_fraction
             loads[zone_id] = InternalLoads(
                 occupants=float(occupants),
                 equipment_heat_w=equipment_power,

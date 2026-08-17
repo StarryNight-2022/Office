@@ -94,16 +94,24 @@ class ResearchAgentProfileConfig:
     replan_on_tool_error: bool = False
     reflection: ResearchMemoryConfig = field(default_factory=ResearchMemoryConfig)
     skills: ResearchSkillConfig = field(default_factory=ResearchSkillConfig)
-    delegation: ResearchDelegationConfig = field(default_factory=ResearchDelegationConfig)
-    verification: ResearchVerificationConfig = field(default_factory=ResearchVerificationConfig)
+    delegation: ResearchDelegationConfig = field(
+        default_factory=ResearchDelegationConfig
+    )
+    verification: ResearchVerificationConfig = field(
+        default_factory=ResearchVerificationConfig
+    )
     rewoo: ResearchReWooConfig = field(default_factory=ResearchReWooConfig)
-    tree_search: ResearchTreeSearchConfig = field(default_factory=ResearchTreeSearchConfig)
+    tree_search: ResearchTreeSearchConfig = field(
+        default_factory=ResearchTreeSearchConfig
+    )
     critic: ResearchCriticConfig = field(default_factory=ResearchCriticConfig)
-    graph_memory: ResearchGraphMemoryConfig = field(default_factory=ResearchGraphMemoryConfig)
+    graph_memory: ResearchGraphMemoryConfig = field(
+        default_factory=ResearchGraphMemoryConfig
+    )
     telemetry: ResearchTelemetryConfig = field(default_factory=ResearchTelemetryConfig)
 
     @classmethod
-    def for_family(cls, family_id: str) -> "ResearchAgentProfileConfig":
+    def for_family(cls, family_id: str) -> ResearchAgentProfileConfig:
         config = AgentConfigBuilder().build(family_id)
         if config.research_profile is None:
             return cls(family_id=family_id, planning_mode="react")
@@ -113,7 +121,9 @@ class ResearchAgentProfileConfig:
 @dataclass
 class ControllerAgentConfig:
     agent_name: str = "farm_baseline_react"
-    base_agent_config: ReactBaseAgentConfig = field(default_factory=ReactBaseAgentConfig)
+    base_agent_config: ReactBaseAgentConfig = field(
+        default_factory=ReactBaseAgentConfig
+    )
     research_profile: ResearchAgentProfileConfig | None = None
     max_turns: int | None = None
 
@@ -155,6 +165,12 @@ FARM_WORLD_GENERAL_SYSTEM_PROMPT = textwrap.dedent(
     """You are an experienced farm manager for a soybean farm in Harbin, Heilongjiang. You manage 64 ridges across a 268m x 71m field through the full growing season: field preparation, planting, crop monitoring, and harvest.
 
 You think and act like a seasoned farmer: practical, methodical, and grounded in real agronomic knowledge."""
+)
+
+BUILDING_WORLD_GENERAL_SYSTEM_PROMPT = textwrap.dedent(
+    """You are an operations controller for a smart conference building. You coordinate room schedules, occupancy, indoor climate, ventilation, lighting, presentation equipment, and meeting services.
+
+You act methodically, use observed evidence, preserve user requirements, and leave rooms in a clean operational state after each meeting."""
 )
 
 FUNCTION_CALL_AGENT_INSTRUCTIONS = textwrap.dedent(
@@ -240,6 +256,24 @@ Each tool call represents one physical action. Call one tool, observe the result
 {environment_hints}"""
 )
 
+BUILDING_WORLD_ENVIRONMENT_INSTRUCTIONS = textwrap.dedent(
+    """You operate a smart building through hardware-neutral applications.
+
+Building execution rules:
+- Inspect room, schedule, device, and sensor state before choosing controls.
+- Use exact IDs returned by tools. Preserve arrays as arrays and use timezone-aware ISO timestamps when requested.
+- Meeting schedules and `SystemApp.current_datetime_local` use Asia/Shanghai (UTC+08:00); the legacy `current_datetime` field is UTC. `advance_time` accepts elapsed durations only: never add or subtract a timezone offset.
+- A command being accepted proves only command-state acceptance; it does not prove that temperature, humidity, CO2, or PM2.5 has reached a target.
+- To test a physical effect, call SystemApp.advance_time and then read the relevant sensors.
+- Coordinate ventilation, HVAC, air cleaning, lighting, meeting equipment, and services according to the meeting phase.
+- Complete the normal lifecycle and switch off every device enabled for the task after the meeting.
+- Never fabricate an observation or silently weaken capacity, timing, participant, or capability requirements.
+
+Available tools are supplied through the function-calling schema.
+
+{environment_hints}"""
+)
+
 SYSTEM_PROMPT_TEMPLATE = textwrap.dedent(
     """<general_instructions>
 {general_instructions}
@@ -278,6 +312,14 @@ FARM_WORLD_ARE_FUNCTION_CALL_SYSTEM_PROMPT = SYSTEM_PROMPT_TEMPLATE.format(
     ),
 )
 
+BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT = SYSTEM_PROMPT_TEMPLATE.format(
+    general_instructions=BUILDING_WORLD_GENERAL_SYSTEM_PROMPT,
+    agent_instructions=FUNCTION_CALL_AGENT_INSTRUCTIONS,
+    environment_instructions=BUILDING_WORLD_ENVIRONMENT_INSTRUCTIONS.format(
+        environment_hints="",
+    ),
+)
+
 FARM_SYSTEM_PROMPT_MODES = ("fairy", "are")
 
 
@@ -293,6 +335,21 @@ def get_farm_world_system_prompt(mode: str = "fairy") -> str:
         raise ValueError(
             f"Unknown FARM system prompt mode {mode!r}; choose from: {choices}"
         ) from exc
+
+
+def get_system_prompt_for_run(
+    controller_id: str, scenario_id: str, farm_mode: str = "fairy"
+) -> str:
+    """Select a domain prompt from both controller and scenario identity."""
+
+    if controller_id.startswith("building_") or scenario_id.startswith(
+        "scenario_building_"
+    ):
+        return BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT
+    if controller_id.startswith("farm_") or scenario_id.startswith("scenario_farm_"):
+        return get_farm_world_system_prompt(farm_mode)
+    return DEFAULT_FUNCTION_CALL_SYSTEM_PROMPT
+
 
 DEFAULT_APP_AGENT_SYSTEM_MESSAGE = SYSTEM_PROMPT_TEMPLATE.format(
     general_instructions=GENERAL_SYSTEM_PROMPT_TEMPLATE,
@@ -396,12 +453,18 @@ OPERATIONS_APP_AGENT_ADDENDUM = (
 class AgentConfigBuilder:
     """Build FAIRY controller configs with ARE-compatible family semantics."""
 
-    def __init__(self, farm_system_prompt: str = "") -> None:
+    def __init__(
+        self, farm_system_prompt: str = "", building_system_prompt: str = ""
+    ) -> None:
         self.farm_system_prompt = farm_system_prompt
+        self.building_system_prompt = building_system_prompt
 
     def build(self, agent_name: str) -> ControllerAgentConfig:
         farm_prompt = self.farm_system_prompt or FARM_WORLD_FUNCTION_CALL_SYSTEM_PROMPT
         generic_prompt = self.farm_system_prompt or DEFAULT_FUNCTION_CALL_SYSTEM_PROMPT
+        building_prompt = (
+            self.building_system_prompt or BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT
+        )
         match agent_name:
             case "default":
                 return ControllerAgentConfig(
@@ -425,6 +488,19 @@ class AgentConfigBuilder:
                     base_agent_config=ReactBaseAgentConfig(
                         system_prompt=farm_prompt,
                         max_iterations=80,
+                    ),
+                    research_profile=ResearchAgentProfileConfig(
+                        family_id=agent_name,
+                        planning_mode="react",
+                        telemetry=ResearchTelemetryConfig(enabled=True),
+                    ),
+                )
+            case "building_baseline_react":
+                return ControllerAgentConfig(
+                    agent_name=agent_name,
+                    base_agent_config=ReactBaseAgentConfig(
+                        system_prompt=building_prompt,
+                        max_iterations=100,
                     ),
                     research_profile=ResearchAgentProfileConfig(
                         family_id=agent_name,
@@ -581,7 +657,9 @@ class AgentConfigBuilder:
 
 
 class AppAgentConfigBuilder:
-    def __init__(self, app_system_prompt: str = DEFAULT_APP_AGENT_SYSTEM_MESSAGE) -> None:
+    def __init__(
+        self, app_system_prompt: str = DEFAULT_APP_AGENT_SYSTEM_MESSAGE
+    ) -> None:
         self.app_system_prompt = app_system_prompt
 
     def list_agents(self) -> list[str]:

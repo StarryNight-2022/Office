@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from fairy.apps.app import App
 from fairy.tool_utils import OperationType, app_tool
 from fairy.types import event_registered
 from fairy.utils.type_utils import type_check
+
+
+# FAIRY's current farm and K1324 fixtures use Harbin/Shanghai civil time.  The
+# epoch timestamp remains timezone-neutral, while tool responses expose both
+# civil time and UTC explicitly so an Agent never needs to add eight hours.
+FAIRY_LOCAL_TIMEZONE = timezone(timedelta(hours=8), name="Asia/Shanghai")
 
 
 @dataclass
@@ -42,15 +48,18 @@ class SystemApp(App):
         Get the current time, date, and weekday.
 
         Returns a dictionary with the keys "current_timestamp" (epoch
-        timestamp), "current_datetime" (YYYY-MM-DD HH:MM:SS), and
-        "current_weekday" (Monday, Tuesday, etc.).
+        timestamp), backward-compatible UTC "current_datetime",
+        explicit "current_datetime_local", and "current_weekday".
         """
         timestamp = self.time_manager.time()
-        date = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        utc_date = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        local_date = datetime.fromtimestamp(timestamp, tz=FAIRY_LOCAL_TIMEZONE)
         return {
             "current_timestamp": timestamp,
-            "current_datetime": date.strftime("%Y-%m-%d %H:%M:%S"),
-            "current_weekday": date.strftime("%A"),
+            "current_datetime": utc_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "current_datetime_local": local_date.isoformat(timespec="seconds"),
+            "local_timezone": "Asia/Shanghai (UTC+08:00)",
+            "current_weekday": local_date.strftime("%A"),
         }
 
     def reset_wait_for_notification_timeout(self) -> None:
@@ -111,7 +120,11 @@ class SystemApp(App):
             weather_app = getattr(farm_world_app, "_weather_app", None)
             if weather_app is not None:
                 w_tm = getattr(weather_app, "time_manager", None)
-                if w_tm is not None and w_tm is not self.time_manager and w_tm is not fw_tm:
+                if (
+                    w_tm is not None
+                    and w_tm is not self.time_manager
+                    and w_tm is not fw_tm
+                ):
                     w_tm.add_offset(total_seconds)
             advance = getattr(farm_world_app, "advance_physics_time", None)
             if callable(advance):
@@ -123,9 +136,11 @@ class SystemApp(App):
             "status": "ok",
             "advanced_seconds": total_seconds,
             "current_timestamp": timestamp,
-            "current_datetime": datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
+            # Preserve the historical return shape for exact replay of old
+            # traces. Agents needing civil time should call get_current_time.
+            "current_datetime": datetime.fromtimestamp(
+                timestamp, tz=timezone.utc
+            ).strftime("%Y-%m-%d %H:%M:%S"),
         }
 
     @app_tool()

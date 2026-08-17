@@ -24,11 +24,28 @@
         "required": ["zone_id", "name", "area_m2", "height_m", "physics", "initial_state"]
       }
     },
+    "functional_areas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["area_id", "name", "purpose", "zone_id"],
+        "properties": {
+          "area_id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "purpose": {"type": "string", "minLength": 1},
+          "zone_id": {"type": "string", "minLength": 1},
+          "capacity": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
     "devices": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["device_id", "device_type", "zone_id", "rated_power_w"]
+        "required": ["device_id", "device_type", "zone_id", "rated_power_w"],
+        "properties": {
+          "functional_area_id": {"type": "string", "minLength": 1}
+        }
       }
     },
     "sensors": {

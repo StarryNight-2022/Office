@@ -13,6 +13,7 @@ from fairy.apps.building_world.types import (
     DeviceSpec,
     DeviceState,
     DeviceType,
+    FunctionalAreaSpec,
     MeetingStatus,
     PersonRole,
     PersonState,
@@ -36,6 +37,7 @@ class BuildingWorldApp(App):
         self.rooms: dict[str, RoomSpec] = {}
         self.room_states: dict[str, RoomDynamicState] = {}
         self.zones: dict[str, ZoneSpec] = {}
+        self.functional_areas: dict[str, FunctionalAreaSpec] = {}
         self.devices: dict[str, DeviceSpec] = {}
         self.device_states: dict[str, DeviceState] = {}
         self.people: dict[str, PersonState] = {}
@@ -64,15 +66,31 @@ class BuildingWorldApp(App):
             raise ValueError(f"zone references unknown room {zone.room_id!r}")
         self.zones[zone.zone_id] = zone
 
-    def add_device(
-        self, device: DeviceSpec, state: DeviceState | None = None
-    ) -> None:
+    def add_functional_area(self, area: FunctionalAreaSpec) -> None:
+        """Register a usage area that maps to an existing physical zone."""
+
+        if area.area_id in self.functional_areas:
+            raise ValueError(f"functional area {area.area_id!r} already exists")
+        if area.room_id not in self.rooms:
+            raise ValueError(
+                f"functional area references unknown room {area.room_id!r}"
+            )
+        zone = self.zones.get(area.zone_id)
+        if zone is None or zone.room_id != area.room_id:
+            raise ValueError("functional area must reference a zone in the same room")
+        self.functional_areas[area.area_id] = area
+
+    def add_device(self, device: DeviceSpec, state: DeviceState | None = None) -> None:
         if device.device_id in self.devices:
             raise ValueError(f"device {device.device_id!r} already exists")
         if device.room_id not in self.rooms:
             raise ValueError(f"device references unknown room {device.room_id!r}")
         if device.zone_id not in self.zones:
             raise ValueError(f"device references unknown zone {device.zone_id!r}")
+        if device.functional_area_id is not None:
+            area = self.functional_areas.get(device.functional_area_id)
+            if area is None or area.room_id != device.room_id:
+                raise ValueError("device references an unknown functional area")
         if state is not None and state.device_id != device.device_id:
             raise ValueError("device state ID must match device spec ID")
         self.devices[device.device_id] = device
@@ -122,6 +140,10 @@ class BuildingWorldApp(App):
         return {
             "rooms": [_room_to_dict(room) for room in self.rooms.values()],
             "zones": [_zone_to_dict(zone) for zone in self.zones.values()],
+            "functional_areas": [
+                _functional_area_to_dict(area)
+                for area in self.functional_areas.values()
+            ],
             "devices": [
                 _device_to_dict(device, self.device_states[device.device_id])
                 for device in self.devices.values()
@@ -147,6 +169,7 @@ class BuildingWorldApp(App):
         self.rooms = {}
         self.room_states = {}
         self.zones = {}
+        self.functional_areas = {}
         self.devices = {}
         self.device_states = {}
         self.people = {}
@@ -167,6 +190,10 @@ class BuildingWorldApp(App):
                 for state in self.room_states.values()
             ],
             "zones": [_zone_to_dict(zone) for zone in self.zones.values()],
+            "functional_areas": [
+                _functional_area_to_dict(area)
+                for area in self.functional_areas.values()
+            ],
             "devices": [
                 _device_to_dict(device, self.device_states[device.device_id])
                 for device in self.devices.values()
@@ -216,6 +243,17 @@ class BuildingWorldApp(App):
             )
             for item in snapshot.get("zones", [])
         }
+        self.functional_areas = {
+            item["area_id"]: FunctionalAreaSpec(
+                area_id=item["area_id"],
+                room_id=item["room_id"],
+                name=item["name"],
+                purpose=item["purpose"],
+                zone_id=item["zone_id"],
+                capacity=item.get("capacity"),
+            )
+            for item in snapshot.get("functional_areas", [])
+        }
         self.devices = {}
         self.device_states = {}
         for item in snapshot.get("devices", []):
@@ -224,6 +262,7 @@ class BuildingWorldApp(App):
                 device_type=DeviceType(item["device_type"]),
                 room_id=item["room_id"],
                 zone_id=item["zone_id"],
+                functional_area_id=item.get("functional_area_id"),
                 capabilities=frozenset(item.get("capabilities", [])),
                 rated_power_w=float(item.get("rated_power_w", 0.0)),
                 parameters=dict(item.get("parameters", {})),
@@ -237,6 +276,7 @@ class BuildingWorldApp(App):
                 health=DeviceHealth(item.get("health", DeviceHealth.ONLINE.value)),
                 water_level_pct=float(item.get("water_level_pct", 100.0)),
                 filter_life_pct=float(item.get("filter_life_pct", 100.0)),
+                settings=dict(item.get("settings", {})),
             )
             self.devices[spec.device_id] = spec
             self.device_states[spec.device_id] = state
@@ -303,12 +343,24 @@ def _zone_to_dict(zone: ZoneSpec) -> dict[str, Any]:
     }
 
 
+def _functional_area_to_dict(area: FunctionalAreaSpec) -> dict[str, Any]:
+    return {
+        "area_id": area.area_id,
+        "room_id": area.room_id,
+        "name": area.name,
+        "purpose": area.purpose,
+        "zone_id": area.zone_id,
+        "capacity": area.capacity,
+    }
+
+
 def _device_to_dict(device: DeviceSpec, state: DeviceState) -> dict[str, Any]:
     return {
         "device_id": device.device_id,
         "device_type": device.device_type.value,
         "room_id": device.room_id,
         "zone_id": device.zone_id,
+        "functional_area_id": device.functional_area_id,
         "capabilities": sorted(device.capabilities),
         "rated_power_w": device.rated_power_w,
         "parameters": dict(device.parameters),
@@ -319,6 +371,7 @@ def _device_to_dict(device: DeviceSpec, state: DeviceState) -> dict[str, Any]:
         "health": state.health.value,
         "water_level_pct": state.water_level_pct,
         "filter_life_pct": state.filter_life_pct,
+        "settings": dict(state.settings),
     }
 
 

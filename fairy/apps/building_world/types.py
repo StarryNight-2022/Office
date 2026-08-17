@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 
 
 class BuildingRunMode(str, Enum):
@@ -54,6 +55,8 @@ class BuildingEventType(str, Enum):
     PERSON_LEFT = "person_left"
     OCCUPANCY_CHANGED = "occupancy_changed"
     DEVICE_STATE_CHANGED = "device_state_changed"
+    PRINT_JOB_SUBMITTED = "print_job_submitted"
+    PRINT_JOB_COMPLETED = "print_job_completed"
     DEVICE_FAILED = "device_failed"
     SENSOR_UPDATED = "sensor_updated"
     COMFORT_THRESHOLD_VIOLATED = "comfort_threshold_violated"
@@ -68,6 +71,7 @@ class DeviceType(str, Enum):
     HVAC = "hvac"
     HUMIDIFIER = "humidifier"
     AIR_PURIFIER = "air_purifier"
+    VENTILATION = "ventilation"
     LIGHTING = "lighting"
     PROJECTOR = "projector"
     AUDIO = "audio"
@@ -113,6 +117,28 @@ class ZoneSpec:
             raise ValueError("zone area and height must be positive")
 
 
+@dataclass(frozen=True)
+class FunctionalAreaSpec:
+    """Human-facing subdivision mapped onto a physical simulation zone.
+
+    Functional areas describe how a room is used without pretending that each
+    seating or service area has an independently measured air volume.
+    """
+
+    area_id: str
+    room_id: str
+    name: str
+    purpose: str
+    zone_id: str
+    capacity: int | None = None
+
+    def __post_init__(self) -> None:
+        if not self.area_id or not self.room_id or not self.zone_id:
+            raise ValueError("functional-area identity and placement cannot be empty")
+        if self.capacity is not None and self.capacity <= 0:
+            raise ValueError("functional-area capacity must be positive")
+
+
 @dataclass
 class RoomDynamicState:
     """Observable business state not owned by the hidden physics engine."""
@@ -134,6 +160,7 @@ class DeviceSpec:
     device_type: DeviceType
     room_id: str
     zone_id: str
+    functional_area_id: str | None = None
     capabilities: frozenset[str] = field(default_factory=frozenset)
     rated_power_w: float = 0.0
     parameters: Mapping[str, float | str | bool] = field(default_factory=dict)
@@ -157,6 +184,9 @@ class DeviceState:
     health: DeviceHealth = DeviceHealth.ONLINE
     water_level_pct: float = 100.0
     filter_life_pct: float = 100.0
+    # Device-specific controls (for example brightness or audio volume) stay
+    # serializable while the common state remains hardware-neutral.
+    settings: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not 0 <= self.level <= 3:

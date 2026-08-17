@@ -4,13 +4,16 @@ from fairy.apps.building_world.air_device_app import AirDeviceApp
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.device_registry import DeviceRegistryApp
 from fairy.apps.building_world.hvac_app import HvacApp
+from fairy.apps.building_world.lighting_app import LightingApp
+from fairy.apps.building_world.meeting_equipment_app import MeetingEquipmentApp
 from fairy.apps.building_world.occupancy_app import OccupancyApp
+from fairy.apps.building_world.printing_app import PrintingApp
 from fairy.apps.building_world.resource_allocation_app import ResourceAllocationApp
+from fairy.apps.building_world.room_app import RoomApp
 from fairy.apps.building_world.room_loader import (
     LoadedRoomConfiguration,
     load_room_configuration,
 )
-from fairy.apps.building_world.room_app import RoomApp
 from fairy.apps.building_world.schedule_app import ScheduleApp
 from fairy.apps.building_world.sensor_app import BuildingSensorApp
 from fairy.apps.building_world.sensor_hub import SensorHub
@@ -24,6 +27,7 @@ from fairy.apps.building_world.types import (
     DeviceSpec,
     DeviceState,
     DeviceType,
+    FunctionalAreaSpec,
     MeetingStatus,
     PersonRole,
     PersonState,
@@ -34,14 +38,15 @@ from fairy.apps.building_world.types import (
     ScheduleEntry,
     ZoneSpec,
 )
+from fairy.apps.building_world.ventilation_app import VentilationApp
 
 __all__ = [
     "ActionResult",
     "AirDeviceApp",
     "BuildingAction",
-    "BuildingRunMode",
     "BuildingEvent",
     "BuildingEventType",
+    "BuildingRunMode",
     "BuildingSensorApp",
     "BuildingWorldApp",
     "DeviceHealth",
@@ -49,21 +54,26 @@ __all__ = [
     "DeviceSpec",
     "DeviceState",
     "DeviceType",
+    "FunctionalAreaSpec",
     "HvacApp",
+    "LightingApp",
     "LoadedRoomConfiguration",
+    "MeetingEquipmentApp",
     "MeetingStatus",
     "OccupancyApp",
     "PersonRole",
     "PersonState",
+    "PrintingApp",
+    "ReservationStatus",
     "ResourceAllocationApp",
     "ResourceReservation",
-    "ReservationStatus",
-    "RoomDynamicState",
     "RoomApp",
+    "RoomDynamicState",
     "RoomSpec",
     "ScheduleApp",
     "ScheduleEntry",
     "SensorHub",
+    "VentilationApp",
     "ZoneSpec",
     "load_room_configuration",
 ]

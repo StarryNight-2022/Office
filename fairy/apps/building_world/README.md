@@ -17,7 +17,7 @@ K1324 传感器筛选、公共天气替代项及分阶段采购建议见
 ```bash
 conda activate are
 python -m pip install -r requirements-building.txt
-python -m pytest tests/test_building_*.py -q
+PYTHONPATH=. python -m pytest tests/test_building_*.py -q
 ```
 
 `k1324.yaml` 当前使用 JSON-compatible YAML，因此运行时不依赖 PyYAML。真实 MQTT
@@ -50,8 +50,9 @@ BuildingWorldRuntime                         |  Sensor Adapter
 
 当前会议预约与环境感知均已装配到 `K1324BuildingScenario`。设备命令可通过
 `BuildingWorldRuntime` 在 `SystemApp.advance_time()` 后形成物理效果和模拟观测；
-Event Queue 和第一版 Trigger Policy 已接入 Runtime，尚未完成的是 Building ARE
-Controller、Agent 唤醒执行和 Conference 长时自适应控制循环。
+Event Queue、第一版 Trigger Policy、Building 专用 system prompt 和
+`building_baseline_react` 已接入。尚未完成的是事件直接唤醒 Agent 的在线执行器与
+Conference 长时自适应控制循环。
 
 ## 2. 分层职责
 
@@ -95,6 +96,10 @@ App 或 Physics，否则换一个场景就会复制业务逻辑。
 | `DeviceRegistryApp` | 查询设备能力、位置、健康和可用性 | 否 |
 | `HvacApp` | 校验并修改 HVAC 命令状态 | 通过 World 写 |
 | `AirDeviceApp` | 校验并修改加湿器/净化器状态 | 通过 World 写 |
+| `VentilationApp` | 控制独立新风档位，映射为室外风量 | 通过 World 写 |
+| `LightingApp` | 控制分区亮度、色温与场景 | 通过 World 写 |
+| `MeetingEquipmentApp` | 控制投影、音响和麦克风并查询 readiness | 通过 World 写 |
+| `PrintingApp` | 控制打印机并管理随仿真时间完成的打印任务 | 设备通过 World；任务由 App 写 |
 | `BuildingWorldRuntime` | 统一推进设备、负荷、物理、观测和事件 | 是 |
 
 App Tool 返回结构化 `dict`。确定性违规通常返回：
@@ -159,12 +164,19 @@ topic / point address / raw payload
 | 会议日程 | `BuildingWorldApp.schedule` | `ScheduleApp` 查询/更新 |
 | 资源预留 | `BuildingWorldApp.reservations` | `ResourceAllocationApp` 更新 |
 | 业务事件 | `BuildingWorldApp.events` | Scenario 验证/未来 Event Bus 消费 |
+| 功能分区 | `BuildingWorldApp.functional_areas` | 房间配置与设备位置查询 |
+| 通用设备设置 | `BuildingWorldApp.device_states.settings` | 设备 App 更新；Runtime 读取物理相关设置 |
+| 打印任务 | `PrintingApp.jobs` | PrintingApp 查询并按仿真时钟完成 |
 | 环境隐藏真值 | `IndoorEnvironmentEngine.states` | Orchestrator 推进 |
 | 累计能耗 | `BuildingPhysicsOrchestrator` | step result/snapshot |
 | 模拟传感器采样状态 | `BuildingObservationModel` | snapshot/restore |
 | 最新读数 | Adapter / `SensorHub` | `BuildingSensorApp` 只读 |
 
 禁止在 Scenario、SensorApp 或 ScheduleApp 中复制另一层的可变状态。
+
+K1324 当前仍只有一个物理空气区 `k1324_meeting_zone`，但配置中增加了演示区、前后
+观众区、入口区和服务区五个功能分区。功能分区用于设备布置和业务推理，全部映射到
+同一物理 zone；在有分区传感器或可靠流体参数之前，不人为制造多个独立空气真值。
 
 ## 4. 会议预约完整工作流
 

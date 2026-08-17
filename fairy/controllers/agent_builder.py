@@ -6,21 +6,23 @@ from typing import Any
 
 from fairy.agents.agent.agent import Agent
 from fairy.agents.agent.base_agent import CST
-from fairy.controllers.app_agent import FinalAnswerApp
 from fairy.controllers.agent_config import (
-    AgentConfigBuilder as ControllerConfigBuilder,
+    BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT,
+    FARM_WORLD_FUNCTION_CALL_SYSTEM_PROMPT,
     AppAgentConfig,
     AppAgentConfigBuilder,
     ControllerAgentConfig,
-    FARM_WORLD_FUNCTION_CALL_SYSTEM_PROMPT,
     ResearchAgentProfileConfig,
 )
+from fairy.controllers.agent_config import (
+    AgentConfigBuilder as ControllerConfigBuilder,
+)
+from fairy.controllers.app_agent import FinalAnswerApp
 from fairy.controllers.research_strategies import (
     ResearchStrategyCoordinator,
     StrategyLogSnapshot,
 )
 from fairy.controllers.skill_library import DynamicSkillLibrary
-
 
 FARM_AGENT_HIDDEN_TOOL_NAMES = frozenset({"AgentUserInterface__send_message_to_agent"})
 
@@ -29,6 +31,7 @@ CONTROLLER_FAMILIES = [
     "default",
     "farm_world",
     "farm_baseline_react",
+    "building_baseline_react",
     "farm_planner_executor",
     "farm_reflective_memory",
     "farm_multi_specialist",
@@ -124,7 +127,10 @@ class ResearchARESimulationAgent(Agent):
             segments.append(
                 "Planning scaffold: define milestones, execute one milestone at a time, and replan after failed checks."
             )
-        if self.controller_profile.reflection.enabled and len(self.reflection_memory) > 0:
+        if (
+            self.controller_profile.reflection.enabled
+            and len(self.reflection_memory) > 0
+        ):
             top_k = max(1, self.controller_profile.reflection.injection_top_k)
             memory_items = self.reflection_memory[-top_k:]
             self.telemetry["memory_reads"] = int(self.telemetry["memory_reads"]) + 1
@@ -146,7 +152,7 @@ class ResearchARESimulationAgent(Agent):
                 self.telemetry["skill_hits"] = int(self.telemetry["skill_hits"]) + len(
                     skill_results
                 )
-                segments.append(f"Retrieved skills:\n" + "\n".join(rendered_rows))
+                segments.append("Retrieved skills:\n" + "\n".join(rendered_rows))
         if self.controller_profile.delegation.enabled:
             specialists = ", ".join(self.controller_profile.delegation.specialists)
             segments.append(
@@ -154,7 +160,9 @@ class ResearchARESimulationAgent(Agent):
                 f" Specialists: {specialists}. Keep one merged action plan."
             )
         if self.controller_profile.verification.enabled:
-            keywords = ", ".join(self.controller_profile.verification.uncertainty_keywords)
+            keywords = ", ".join(
+                self.controller_profile.verification.uncertainty_keywords
+            )
             segments.append(
                 "Adaptive verification: if uncertainty cues appear, run an explicit verification check before irreversible actions."
                 f" Uncertainty cues: {keywords}."
@@ -256,9 +264,9 @@ class ResearchARESimulationAgent(Agent):
         content = str(first_message.get("content") or "")
         if "Today's date in 'YYYY-MM-DD HH' format is" in content:
             return
-        date_str = datetime.fromtimestamp(
-            self.time_manager.time(), tz=CST
-        ).strftime("%Y-%m-%d %H")
+        date_str = datetime.fromtimestamp(self.time_manager.time(), tz=CST).strftime(
+            "%Y-%m-%d %H"
+        )
         first_message["content"] = (
             f"{content}\n\nToday's date in 'YYYY-MM-DD HH' format is {date_str}"
         )
@@ -293,7 +301,10 @@ class AgentBuilder:
             ).build(agent_config.get_agent_name())
             agent_config = built_config
         family_id = agent_config.get_agent_name()
-        profile = agent_config.research_profile or ResearchAgentProfileConfig.for_family(family_id)
+        profile = (
+            agent_config.research_profile
+            or ResearchAgentProfileConfig.for_family(family_id)
+        )
         return ResearchARESimulationAgent(
             name=family_id,
             llm=llm,
@@ -330,7 +341,10 @@ def build_controller_agent(
     system_message: str | None = None,
 ) -> ResearchARESimulationAgent:
     config = ControllerConfigBuilder(
-        farm_system_prompt=system_message or DEFAULT_FARM_SYSTEM_MESSAGE
+        farm_system_prompt=system_message or DEFAULT_FARM_SYSTEM_MESSAGE,
+        building_system_prompt=(
+            system_message or BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT
+        ),
     ).build(family_id)
     return AgentBuilder().build(
         agent_config=config,

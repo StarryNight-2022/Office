@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.types import (
     DeviceSpec,
     DeviceState,
     DeviceType,
+    FunctionalAreaSpec,
     RoomSpec,
     ZoneSpec,
 )
@@ -26,6 +28,7 @@ class LoadedRoomConfiguration:
 
     room: RoomSpec
     zones: tuple[ZoneSpec, ...]
+    functional_areas: tuple[FunctionalAreaSpec, ...]
     zone_parameters: Mapping[str, ZoneParameters]
     initial_zone_states: Mapping[str, ZoneState]
     devices: tuple[DeviceSpec, ...]
@@ -38,6 +41,8 @@ class LoadedRoomConfiguration:
         world.add_room(self.room)
         for zone in self.zones:
             world.add_zone(zone)
+        for area in self.functional_areas:
+            world.add_functional_area(area)
         for device in self.devices:
             # Configurations are reusable fixtures; World receives its own
             # mutable command state rather than mutating the loader result.
@@ -105,6 +110,32 @@ def _parse_room_configuration(raw: Mapping[str, Any]) -> LoadedRoomConfiguration
             raise ValueError(f"invalid zone {zone_id!r} fields: {exc}") from exc
 
     known_zones = set(zone_parameters)
+    functional_areas: list[FunctionalAreaSpec] = []
+    known_areas: set[str] = set()
+    for row in _object_list(raw, "functional_areas"):
+        area_id = _required_string(row, "area_id")
+        if area_id in known_areas:
+            raise ValueError(f"duplicate functional area {area_id!r}")
+        zone_id = _required_string(row, "zone_id")
+        if zone_id not in known_zones:
+            raise ValueError(f"functional area {area_id!r} references unknown zone")
+        capacity = row.get("capacity")
+        if capacity is not None and (
+            not isinstance(capacity, int) or isinstance(capacity, bool) or capacity <= 0
+        ):
+            raise ValueError("functional-area capacity must be a positive integer")
+        functional_areas.append(
+            FunctionalAreaSpec(
+                area_id=area_id,
+                room_id=room.room_id,
+                name=_required_string(row, "name"),
+                purpose=_required_string(row, "purpose"),
+                zone_id=zone_id,
+                capacity=capacity,
+            )
+        )
+        known_areas.add(area_id)
+
     devices: list[DeviceSpec] = []
     device_states: dict[str, DeviceState] = {}
     for row in _object_list(raw, "devices"):
@@ -119,12 +150,16 @@ def _parse_room_configuration(raw: Mapping[str, Any]) -> LoadedRoomConfiguration
         except ValueError as exc:
             raise ValueError(f"unsupported device type for {device_id!r}") from exc
         rated_power_w = float(row.get("rated_power_w", 0.0))
+        functional_area_id = row.get("functional_area_id")
+        if functional_area_id is not None and functional_area_id not in known_areas:
+            raise ValueError(f"device {device_id!r} references unknown functional area")
         devices.append(
             DeviceSpec(
                 device_id=device_id,
                 device_type=device_type,
                 room_id=room.room_id,
                 zone_id=zone_id,
+                functional_area_id=functional_area_id,
                 capabilities=frozenset(_string_list(row, "capabilities")),
                 rated_power_w=rated_power_w,
                 parameters=dict(row.get("parameters", {})),
@@ -152,9 +187,7 @@ def _parse_room_configuration(raw: Mapping[str, Any]) -> LoadedRoomConfiguration
                 sensor_id=sensor_id,
                 zone_id=zone_id,
                 quantity=quantity,
-                sample_interval_seconds=float(
-                    row.get("sample_interval_seconds", 60.0)
-                ),
+                sample_interval_seconds=float(row.get("sample_interval_seconds", 60.0)),
                 latency_seconds=float(row.get("latency_seconds", 0.0)),
                 noise_standard_deviation=float(
                     row.get("noise_standard_deviation", 0.0)
@@ -168,6 +201,7 @@ def _parse_room_configuration(raw: Mapping[str, Any]) -> LoadedRoomConfiguration
     return LoadedRoomConfiguration(
         room=room,
         zones=tuple(zones),
+        functional_areas=tuple(functional_areas),
         zone_parameters=zone_parameters,
         initial_zone_states=initial_states,
         devices=tuple(devices),

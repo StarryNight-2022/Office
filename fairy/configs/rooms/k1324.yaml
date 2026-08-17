@@ -32,11 +32,19 @@
       }
     }
   ],
+  "functional_areas": [
+    {"area_id": "k1324_presentation_area", "name": "Presentation Area", "purpose": "presentation_and_speaking", "zone_id": "k1324_meeting_zone", "capacity": 3},
+    {"area_id": "k1324_audience_front", "name": "Front Audience Area", "purpose": "participant_seating", "zone_id": "k1324_meeting_zone", "capacity": 8},
+    {"area_id": "k1324_audience_rear", "name": "Rear Audience Area", "purpose": "participant_seating", "zone_id": "k1324_meeting_zone", "capacity": 9},
+    {"area_id": "k1324_entrance_area", "name": "Entrance Area", "purpose": "arrival_and_departure", "zone_id": "k1324_meeting_zone"},
+    {"area_id": "k1324_service_area", "name": "Meeting Service Area", "purpose": "printing_and_equipment_service", "zone_id": "k1324_meeting_zone"}
+  ],
   "devices": [
     {
       "device_id": "k1324_hvac_01",
       "device_type": "hvac",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_service_area",
       "capabilities": ["cooling", "heating", "fan"],
       "rated_power_w": 1800.0,
       "parameters": {
@@ -49,6 +57,7 @@
       "device_id": "k1324_humidifier_01",
       "device_type": "humidifier",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_service_area",
       "capabilities": ["humidification"],
       "rated_power_w": 80.0,
       "parameters": {"humidification_g_s_max": 0.35}
@@ -57,6 +66,7 @@
       "device_id": "k1324_purifier_01",
       "device_type": "air_purifier",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_service_area",
       "capabilities": ["pm25_removal"],
       "rated_power_w": 60.0,
       "parameters": {"clean_air_delivery_m3_s_max": 0.12}
@@ -65,6 +75,7 @@
       "device_id": "k1324_projector_01",
       "device_type": "projector",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_presentation_area",
       "capabilities": ["projection"],
       "rated_power_w": 300.0
     },
@@ -72,6 +83,7 @@
       "device_id": "k1324_audio_01",
       "device_type": "audio",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_presentation_area",
       "capabilities": ["speaker", "microphone"],
       "rated_power_w": 100.0
     },
@@ -79,8 +91,35 @@
       "device_id": "k1324_printer_01",
       "device_type": "printer",
       "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_service_area",
       "capabilities": ["document", "nameplate"],
-      "rated_power_w": 500.0
+      "rated_power_w": 500.0,
+      "parameters": {"pages_per_minute": 20.0}
+    },
+    {
+      "device_id": "k1324_ventilation_01",
+      "device_type": "ventilation",
+      "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_service_area",
+      "capabilities": ["outdoor_air", "co2_control"],
+      "rated_power_w": 180.0,
+      "parameters": {"outdoor_airflow_m3_s_max": 0.35}
+    },
+    {
+      "device_id": "k1324_lighting_front_01",
+      "device_type": "lighting",
+      "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_presentation_area",
+      "capabilities": ["dimming", "color_temperature", "scene"],
+      "rated_power_w": 120.0
+    },
+    {
+      "device_id": "k1324_lighting_audience_01",
+      "device_type": "lighting",
+      "zone_id": "k1324_meeting_zone",
+      "functional_area_id": "k1324_audience_front",
+      "capabilities": ["dimming", "color_temperature", "scene"],
+      "rated_power_w": 180.0
     }
   ],
   "sensors": [

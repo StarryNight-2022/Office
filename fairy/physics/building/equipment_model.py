@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Mapping
+from collections.abc import Mapping
 
 from fairy.apps.building_world.types import (
     DeviceHealth,
@@ -49,9 +49,7 @@ class BuildingEquipmentModel:
                 demand = 1.0
                 if target is not None:
                     delta = (
-                        truth - target
-                        if mode == HvacMode.COOLING
-                        else target - truth
+                        truth - target if mode == HvacMode.COOLING else target - truth
                     )
                     demand = max(0.0, min(1.0, delta / 3.0))
                 delivered = capacity * level_fraction * demand
@@ -59,26 +57,43 @@ class BuildingEquipmentModel:
                     row["cooling_w"] = float(row["cooling_w"]) + delivered
                 elif mode == HvacMode.HEATING:
                     row["heating_w"] = float(row["heating_w"]) + delivered
-                row["outdoor_airflow_m3_s"] = float(
-                    row["outdoor_airflow_m3_s"]
-                ) + _number(spec, "outdoor_airflow_m3_s", 0.0) * level_fraction
-                row["auxiliary_electric_power_w"] = float(
-                    row["auxiliary_electric_power_w"]
-                ) + _number(spec, "fan_power_w", spec.rated_power_w) * level_fraction
+                row["outdoor_airflow_m3_s"] = (
+                    float(row["outdoor_airflow_m3_s"])
+                    + _number(spec, "outdoor_airflow_m3_s", 0.0) * level_fraction
+                )
+                row["auxiliary_electric_power_w"] = (
+                    float(row["auxiliary_electric_power_w"])
+                    + _number(spec, "fan_power_w", spec.rated_power_w) * level_fraction
+                )
             elif spec.device_type == DeviceType.HUMIDIFIER:
-                row["humidification_g_s"] = float(
-                    row["humidification_g_s"]
-                ) + _number(spec, "humidification_g_s_max", 0.0) * level_fraction
-                row["auxiliary_electric_power_w"] = float(
-                    row["auxiliary_electric_power_w"]
-                ) + spec.rated_power_w * level_fraction
+                row["humidification_g_s"] = (
+                    float(row["humidification_g_s"])
+                    + _number(spec, "humidification_g_s_max", 0.0) * level_fraction
+                )
+                row["auxiliary_electric_power_w"] = (
+                    float(row["auxiliary_electric_power_w"])
+                    + spec.rated_power_w * level_fraction
+                )
             elif spec.device_type == DeviceType.AIR_PURIFIER:
-                row["clean_air_delivery_m3_s"] = float(
-                    row["clean_air_delivery_m3_s"]
-                ) + _number(spec, "clean_air_delivery_m3_s_max", 0.0) * level_fraction
-                row["auxiliary_electric_power_w"] = float(
-                    row["auxiliary_electric_power_w"]
-                ) + spec.rated_power_w * level_fraction
+                row["clean_air_delivery_m3_s"] = (
+                    float(row["clean_air_delivery_m3_s"])
+                    + _number(spec, "clean_air_delivery_m3_s_max", 0.0) * level_fraction
+                )
+                row["auxiliary_electric_power_w"] = (
+                    float(row["auxiliary_electric_power_w"])
+                    + spec.rated_power_w * level_fraction
+                )
+            elif spec.device_type == DeviceType.VENTILATION:
+                # Dedicated ventilation supplies outdoor air independently of
+                # HVAC thermal mode, allowing CO2 control to be tested directly.
+                row["outdoor_airflow_m3_s"] = (
+                    float(row["outdoor_airflow_m3_s"])
+                    + _number(spec, "outdoor_airflow_m3_s_max", 0.0) * level_fraction
+                )
+                row["auxiliary_electric_power_w"] = (
+                    float(row["auxiliary_electric_power_w"])
+                    + spec.rated_power_w * level_fraction
+                )
 
         return {
             zone_id: HvacCommand(**row)  # type: ignore[arg-type]

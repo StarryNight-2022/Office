@@ -13,10 +13,14 @@ from fairy.apps.building_world import (
     BuildingWorldApp,
     DeviceRegistryApp,
     HvacApp,
+    LightingApp,
+    MeetingEquipmentApp,
     OccupancyApp,
+    PrintingApp,
     ResourceAllocationApp,
     RoomApp,
     ScheduleApp,
+    VentilationApp,
 )
 from fairy.apps.building_world.room_loader import load_room_configuration
 from fairy.apps.building_world.runtime import (
@@ -28,7 +32,6 @@ from fairy.apps.building_world.types import PersonRole, PersonState, RoomSpec
 from fairy.apps.system import SystemApp
 from fairy.physics.building.models import OutdoorConditions
 from fairy.scenarios.scenario import Scenario
-
 
 CST = timezone(timedelta(hours=8))
 
@@ -98,6 +101,10 @@ class K1324BuildingScenario(Scenario):
         registry = DeviceRegistryApp(world)
         hvac = HvacApp(world)
         air_devices = AirDeviceApp(world)
+        ventilation = VentilationApp(world)
+        lighting = LightingApp(world)
+        meeting_equipment = MeetingEquipmentApp(world)
+        printing = PrintingApp(world)
         sensors = BuildingSensorApp(runtime.sensors)
         system = SystemApp()
         system.register_time_advance_hook(
@@ -114,6 +121,10 @@ class K1324BuildingScenario(Scenario):
             registry,
             hvac,
             air_devices,
+            ventilation,
+            lighting,
+            meeting_equipment,
+            printing,
             sensors,
             system,
         ]

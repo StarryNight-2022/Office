@@ -17,7 +17,7 @@ from fairy.controllers.agent_builder import (
 from fairy.controllers.agent_config import (
     FARM_SYSTEM_PROMPT_MODES,
     AppAgentConfigBuilder,
-    get_farm_world_system_prompt,
+    get_system_prompt_for_run,
 )
 from fairy.controllers.app_agent import apply_a2a_to_apps, collect_a2a_traces
 from fairy.controllers.engine import Engine
@@ -124,8 +124,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run FAIRY farm scenarios")
     parser.add_argument("-s", "--scenario", help="Scenario id")
     parser.add_argument("-o", "--oracle", action="store_true", help="Run oracle only")
-    parser.add_argument("--agent", action="store_true", help="Run a real function-calling agent")
-    parser.add_argument("--controller", default="farm_baseline_react", help="Controller family for --agent")
+    parser.add_argument(
+        "--agent", action="store_true", help="Run a real function-calling agent"
+    )
+    parser.add_argument(
+        "--controller",
+        default="farm_baseline_react",
+        help="Controller family for --agent",
+    )
     parser.add_argument(
         "--system-prompt-mode",
         choices=FARM_SYSTEM_PROMPT_MODES,
@@ -135,9 +141,15 @@ def main() -> None:
             "'are' ports compatible legacy ARE behavior rules"
         ),
     )
-    parser.add_argument("--provider", default="deepseek", help="LLM provider for --agent")
-    parser.add_argument("--model", default="deepseek-chat", help="LLM model for --agent")
-    parser.add_argument("--temperature", type=float, default=0.1, help="LLM temperature for --agent")
+    parser.add_argument(
+        "--provider", default="deepseek", help="LLM provider for --agent"
+    )
+    parser.add_argument(
+        "--model", default="deepseek-chat", help="LLM model for --agent"
+    )
+    parser.add_argument(
+        "--temperature", type=float, default=0.1, help="LLM temperature for --agent"
+    )
     parser.add_argument(
         "--max-output-tokens",
         "--max-tokens",
@@ -146,28 +158,106 @@ def main() -> None:
         default=2048,
         help="Maximum completion tokens per LLM call",
     )
-    parser.add_argument("--endpoint", default=None, help="OpenAI-compatible base URL for --agent provider")
-    parser.add_argument("--parallel-tool-calls", type=_str_to_bool, default=True, help="Allow the model to return multiple tool calls in one LLM turn")
-    parser.add_argument("--max-tool-calls", type=int, default=300, help="Maximum tool calls for --agent")
-    parser.add_argument("--timeout-seconds", type=float, default=1200.0, help="Wall-time limit for --agent")
-    parser.add_argument("--a2a", type=_str_to_bool, default=False, help="Enable Agent2Agent app wrappers")
-    parser.add_argument("--a2a-app-prop", type=float, default=0.5, help="Fraction of eligible apps to wrap for A2A")
-    parser.add_argument("--a2a-policy", default="generic", choices=["generic", "typed_experts"], help="A2A app-agent selection policy")
-    parser.add_argument("--a2a-app-agent", default="default_app_agent", help="Fallback app-agent profile")
-    parser.add_argument("--a2a-model", default=None, help="A2A app-agent model; defaults to main model")
-    parser.add_argument("--a2a-provider", default=None, help="A2A app-agent provider; defaults to main provider")
-    parser.add_argument("--a2a-endpoint", default=None, help="A2A app-agent endpoint; defaults to main endpoint")
-    parser.add_argument("--a2a-max-tool-calls", type=int, default=None, help="Maximum tool calls per A2A expert agent; defaults to --max-tool-calls")
-    parser.add_argument("--build-oracle", action="store_true", help="Build and save oracle workflow")
-    parser.add_argument("--run-oracle-tools", action="store_true", help="Execute tools while building oracle")
-    parser.add_argument("--replay", action="store_true", help="Replay a workflow against fresh scenario state")
-    parser.add_argument("--evaluate", action="store_true", help="Evaluate the replayed workflow")
-    parser.add_argument("--workflow", help="Workflow JSON path for build output or replay input")
-    parser.add_argument("--output-dir", default="runs", help="Directory for generated workflow/evaluation files")
-    parser.add_argument("--scenario-kwargs", default=None, help="JSON object passed to the scenario constructor")
-    parser.add_argument("--init-kwargs", default=None, help="JSON object passed to scenario setup/initialize")
+    parser.add_argument(
+        "--endpoint",
+        default=None,
+        help="OpenAI-compatible base URL for --agent provider",
+    )
+    parser.add_argument(
+        "--parallel-tool-calls",
+        type=_str_to_bool,
+        default=True,
+        help="Allow the model to return multiple tool calls in one LLM turn",
+    )
+    parser.add_argument(
+        "--max-tool-calls", type=int, default=300, help="Maximum tool calls for --agent"
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=1200.0,
+        help="Wall-time limit for --agent",
+    )
+    parser.add_argument(
+        "--a2a",
+        type=_str_to_bool,
+        default=False,
+        help="Enable Agent2Agent app wrappers",
+    )
+    parser.add_argument(
+        "--a2a-app-prop",
+        type=float,
+        default=0.5,
+        help="Fraction of eligible apps to wrap for A2A",
+    )
+    parser.add_argument(
+        "--a2a-policy",
+        default="generic",
+        choices=["generic", "typed_experts"],
+        help="A2A app-agent selection policy",
+    )
+    parser.add_argument(
+        "--a2a-app-agent",
+        default="default_app_agent",
+        help="Fallback app-agent profile",
+    )
+    parser.add_argument(
+        "--a2a-model", default=None, help="A2A app-agent model; defaults to main model"
+    )
+    parser.add_argument(
+        "--a2a-provider",
+        default=None,
+        help="A2A app-agent provider; defaults to main provider",
+    )
+    parser.add_argument(
+        "--a2a-endpoint",
+        default=None,
+        help="A2A app-agent endpoint; defaults to main endpoint",
+    )
+    parser.add_argument(
+        "--a2a-max-tool-calls",
+        type=int,
+        default=None,
+        help="Maximum tool calls per A2A expert agent; defaults to --max-tool-calls",
+    )
+    parser.add_argument(
+        "--build-oracle", action="store_true", help="Build and save oracle workflow"
+    )
+    parser.add_argument(
+        "--run-oracle-tools",
+        action="store_true",
+        help="Execute tools while building oracle",
+    )
+    parser.add_argument(
+        "--replay",
+        action="store_true",
+        help="Replay a workflow against fresh scenario state",
+    )
+    parser.add_argument(
+        "--evaluate", action="store_true", help="Evaluate the replayed workflow"
+    )
+    parser.add_argument(
+        "--workflow", help="Workflow JSON path for build output or replay input"
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="runs",
+        help="Directory for generated workflow/evaluation files",
+    )
+    parser.add_argument(
+        "--scenario-kwargs",
+        default=None,
+        help="JSON object passed to the scenario constructor",
+    )
+    parser.add_argument(
+        "--init-kwargs",
+        default=None,
+        help="JSON object passed to scenario setup/initialize",
+    )
     parser.add_argument("--list", action="store_true", help="List scenarios")
-    parser.add_argument("--list-controllers", action="store_true", help="List controller families")
+    parser.add_argument(
+        "--list-controllers", action="store_true", help="List controller families"
+    )
     args = parser.parse_args()
     if args.list_controllers:
         for controller_id in AgentBuilder().list_agents():
@@ -185,7 +275,11 @@ def main() -> None:
     scenario_kwargs = _json_object_arg(args.scenario_kwargs, "--scenario-kwargs")
     init_kwargs = _json_object_arg(args.init_kwargs, "--init-kwargs")
     output_dir = Path(args.output_dir)
-    workflow_path = Path(args.workflow) if args.workflow else output_dir / f"{args.scenario}.oracle.json"
+    workflow_path = (
+        Path(args.workflow)
+        if args.workflow
+        else output_dir / f"{args.scenario}.oracle.json"
+    )
 
     if args.build_oracle or args.replay or args.evaluate:
         run_wall_start = time.perf_counter()
@@ -197,7 +291,9 @@ def main() -> None:
         artifacts: dict[str, str] = {}
 
         if args.build_oracle:
-            build_engine = Engine(agent=None, scenario=scenario_class(**scenario_kwargs))
+            build_engine = Engine(
+                agent=None, scenario=scenario_class(**scenario_kwargs)
+            )
             source_workflow = build_engine.build_oracle_workflow(
                 run_oracle=args.run_oracle_tools,
                 **init_kwargs,
@@ -209,7 +305,9 @@ def main() -> None:
         if args.replay or args.evaluate:
             if source_workflow is None:
                 source_workflow = Workflow.load_workflow(str(workflow_path))
-            active_engine = Engine(agent=None, scenario=scenario_class(**scenario_kwargs))
+            active_engine = Engine(
+                agent=None, scenario=scenario_class(**scenario_kwargs)
+            )
             active_workflow = active_engine.replay_workflow(source_workflow)
             replay_path = output_dir / f"{args.scenario}.replay.json"
             active_workflow.save_workflow(str(replay_path))
@@ -322,7 +420,9 @@ def main() -> None:
             args.controller,
             llm=llm,
             toolsets=scenario.apps,
-            system_message=get_farm_world_system_prompt(args.system_prompt_mode),
+            system_message=get_system_prompt_for_run(
+                args.controller, args.scenario, args.system_prompt_mode
+            ),
         )
         agent.runtime_event_sink = lambda event: _append_live_progress(
             progress_log_path, event
@@ -338,7 +438,9 @@ def main() -> None:
                 timeout_seconds=args.timeout_seconds,
                 setup_scenario=False,
             )
-            final_message = agent.messages.messages[-1] if agent.messages.messages else None
+            final_message = (
+                agent.messages.messages[-1] if agent.messages.messages else None
+            )
             stopped_reason = agent.stop_reason or "agent_finished"
         except Exception as exc:
             stopped_reason = agent.stop_reason or "error"
