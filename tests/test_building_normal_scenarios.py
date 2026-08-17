@@ -5,6 +5,9 @@ from fairy.controllers.engine import Engine
 from fairy.scenarios.building_kechuang.k1315.scenario_conference_standard import (
     ScenarioBuildingKechuangK1315ConferenceStandard,
 )
+from fairy.scenarios.building_kechuang.k1316.scenario_seminar_standard import (
+    ScenarioBuildingKechuangK1316SeminarStandard,
+)
 from fairy.scenarios.building_kechuang.k1324.scenario_climate_coordination import (
     ScenarioBuildingKechuangK1324ClimateCoordination,
 )
@@ -28,6 +31,7 @@ def _replay(scenario_class):
     "scenario_class",
     [
         ScenarioBuildingKechuangK1315ConferenceStandard,
+        ScenarioBuildingKechuangK1316SeminarStandard,
         ScenarioBuildingKechuangK1324ClimateCoordination,
         ScenarioBuildingKechuangK1324OccupancyRamp,
     ],
@@ -37,6 +41,26 @@ def test_normal_scenario_oracle_replay_validates(scenario_class) -> None:
 
     assert len(oracle.dag) == len(replayed.dag)
     assert report["validation"]["success"] is True
+    metrics = report["outcome"]["building"]
+    assert metrics["physics_step_count"] > 0
+    assert metrics["simulated_time_seconds"] > 0
+    assert metrics["energy"]["total_kwh"] >= 0.0
+    assert metrics["inventory"] == {
+        "room_count": 3,
+        "zone_count": 3,
+        "device_count": 17,
+        "sensor_count": 11,
+        "device_types": [
+            "air_purifier",
+            "audio",
+            "humidifier",
+            "hvac",
+            "lighting",
+            "printer",
+            "projector",
+            "ventilation",
+        ],
+    }
 
 
 def test_standard_conference_runs_ordered_lifecycle_and_cleanup() -> None:
@@ -60,6 +84,25 @@ def test_standard_conference_runs_ordered_lifecycle_and_cleanup() -> None:
     }
     assert BuildingEventType.MEETING_PREPARATION_DUE.value in wake_types
     assert BuildingEventType.MEETING_ENDED.value in wake_types
+
+
+def test_small_seminar_runs_midpoint_feedback_and_cleanup() -> None:
+    _, _, replayed, report = _replay(
+        ScenarioBuildingKechuangK1316SeminarStandard
+    )
+    metadata = report["validation"]["metadata"]
+
+    assert metadata["lifecycle_events"] == [
+        BuildingEventType.MEETING_PREPARATION_DUE.value,
+        BuildingEventType.OCCUPANCY_CHANGED.value,
+        BuildingEventType.MEETING_STARTED.value,
+        BuildingEventType.ENVIRONMENT_CHECK_DUE.value,
+        BuildingEventType.MEETING_ENDED.value,
+    ]
+    assert metadata["peak_co2_ppm"] < 1200.0
+    assert metadata["energy_kwh"] > 0.0
+    assert replayed.dag["verify_seminar_equipment"].content["ready"] is True
+    assert replayed.dag["boost_full_room_ventilation"].content["status"] == "accepted"
 
 
 def test_climate_coordination_observes_cooling_and_humidity() -> None:
@@ -92,6 +135,10 @@ def test_occupancy_ramp_records_planned_counts_and_co2_recovery() -> None:
         (
             "scenario_building_kechuang_k1315_conference_standard",
             ScenarioBuildingKechuangK1315ConferenceStandard,
+        ),
+        (
+            "scenario_building_kechuang_k1316_seminar_standard",
+            ScenarioBuildingKechuangK1316SeminarStandard,
         ),
         (
             "scenario_building_kechuang_k1324_climate_coordination",

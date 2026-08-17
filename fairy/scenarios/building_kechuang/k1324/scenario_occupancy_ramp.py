@@ -9,7 +9,8 @@ from fairy.apps.building_world import (
     BuildingEventType,
     BuildingSensorApp,
     BuildingWorldApp,
-    HvacApp,
+    OccupancyApp,
+    VentilationApp,
 )
 from fairy.apps.system import SystemApp
 from fairy.scenarios.building_kechuang.base import (
@@ -37,9 +38,11 @@ class ScenarioBuildingKechuangK1324OccupancyRamp(KechuangBuildingScenario):
     start_time: float | None = local_timestamp(2026, 9, 10, 9)
     time_increment_in_seconds: int = 60
     scenario_input = """
-K1324 研究生办公室的师生会在工作日早晨分批到达，并在午间前分批离开。请开启正常通风，
-在每个人数阶段等待物理环境演化并检查传感器；全部人员离开后继续通风一段时间，
-确认空气质量开始恢复，然后关闭空调风机。
+K1324 研究生办公室从 09:00 开始按计划变化人数：09:10 为 5 人、09:20 为 10 人、
+09:30 为 15 人、09:45 为 10 人、09:55 为 5 人、10:05 为 0 人。请开启
+`k1324_ventilation_01` 正常通风，并按上述时间边界推进；每次先读取房间人数，再检查
+环境传感器。全部人员离开后继续通风 15 分钟，确认 CO₂ 从峰值开始恢复，然后关闭
+独立通风设备。不要推进到计划之外的时间。
 """.strip()
 
     def initiate_scenario(self) -> None:
@@ -65,7 +68,8 @@ K1324 研究生办公室的师生会在工作日早晨分批到达，并在午�
         aui = self.get_typed_app(AgentUserInterface)
         system = self.get_typed_app(SystemApp)
         sensors = self.get_typed_app(BuildingSensorApp)
-        hvac = self.get_typed_app(HvacApp)
+        occupancy = self.get_typed_app(OccupancyApp)
+        ventilation = self.get_typed_app(VentilationApp)
 
         with EventRegisterer.capture_mode():
             briefing = (
@@ -74,7 +78,7 @@ K1324 研究生办公室的师生会在工作日早晨分批到达，并在午�
                 .depends_on(None, delay_seconds=1)
             )
             previous = (
-                hvac.set_hvac("k1324_hvac_01", True, "fan", 24.0, 3)
+                ventilation.set_ventilation("k1324_ventilation_01", True, 2)
                 .oracle()
                 .with_id("start_normal_ventilation")
                 .depends_on(briefing, delay_seconds=1)
@@ -87,11 +91,17 @@ K1324 研究生办公室的师生会在工作日早晨分批到达，并在午�
                     .with_id(f"wait_to_minute_{minute:02d}_occupancy_{count:02d}")
                     .depends_on(previous, delay_seconds=1)
                 )
+                occupancy_reading = (
+                    occupancy.get_room_occupancy("k1324")
+                    .oracle()
+                    .with_id(f"read_occupancy_minute_{minute:02d}")
+                    .depends_on(wait, delay_seconds=1)
+                )
                 previous = (
                     sensors.read_zone_sensors(ZONE_ID)
                     .oracle()
                     .with_id(f"read_minute_{minute:02d}_occupancy_{count:02d}")
-                    .depends_on(wait, delay_seconds=1)
+                    .depends_on(occupancy_reading, delay_seconds=1)
                 )
                 previous_minute = minute
             recover = (
@@ -107,7 +117,7 @@ K1324 研究生办公室的师生会在工作日早晨分批到达，并在午�
                 .depends_on(recover, delay_seconds=1)
             )
             stop = (
-                hvac.set_hvac("k1324_hvac_01", False, "off", 24.0, 0)
+                ventilation.set_ventilation("k1324_ventilation_01", False, 0)
                 .oracle()
                 .with_id("stop_normal_ventilation")
                 .depends_on(recovered, delay_seconds=1)
@@ -147,7 +157,7 @@ K1324 研究生办公室的师生会在工作日早晨分批到达，并在午�
             and world.room_states["k1324"].occupancy_count == 0
             and peak_co2 > self.initial_co2_ppm
             and final_co2 < peak_co2
-            and not world.device_states["k1324_hvac_01"].power_on
+            and not world.device_states["k1324_ventilation_01"].power_on
         )
         return ScenarioValidationResult(
             success=success,

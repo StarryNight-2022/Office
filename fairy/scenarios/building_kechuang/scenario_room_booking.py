@@ -10,7 +10,11 @@ from fairy.apps.building_world import (
     ScheduleApp,
 )
 from fairy.apps.building_world.datetime_utils import parse_datetime
-from fairy.apps.building_world.types import MeetingStatus, ScheduleEntry
+from fairy.apps.building_world.types import (
+    BuildingEventType,
+    MeetingStatus,
+    ScheduleEntry,
+)
 from fairy.scenarios.building_kechuang.base import (
     KechuangBuildingScenario,
     collect_event_graph,
@@ -152,18 +156,28 @@ class ScenarioBuildingKechuangRoomBooking(KechuangBuildingScenario):
             and created[0].room_id == "k1316"
             and created[0].organizer_id == "student-01"
             and "professor-01" in created[0].participant_ids
+            and not any(state.power_on for state in world.device_states.values())
+            and not any(
+                event.event_type == BuildingEventType.DEVICE_STATE_CHANGED
+                for event in world.events
+            )
         )
         return ScenarioValidationResult(
             success=success,
             rationale=(
                 "meeting booked in the valid fallback room"
                 if success
-                else "expected exactly one valid student/professor meeting in k1316"
+                else "expected one valid k1316 booking without premature device actions"
             ),
             metadata={
                 "created_meeting_ids": [meeting.meeting_id for meeting in created],
                 "building_event_types": [
                     event.event_type.value for event in world.events
+                ],
+                "active_device_ids": [
+                    device_id
+                    for device_id, state in world.device_states.items()
+                    if state.power_on
                 ],
             },
         )

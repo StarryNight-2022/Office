@@ -6,6 +6,7 @@ from fairy.apps.building_world.device_registry import DeviceRegistryApp
 from fairy.apps.building_world.hvac_app import HvacApp
 from fairy.apps.building_world.lighting_app import LightingApp
 from fairy.apps.building_world.meeting_equipment_app import MeetingEquipmentApp
+from fairy.apps.building_world.metrics import build_building_metrics
 from fairy.apps.building_world.occupancy_app import OccupancyApp
 from fairy.apps.building_world.printing_app import PrintingApp
 from fairy.apps.building_world.resource_allocation_app import ResourceAllocationApp
@@ -17,6 +18,10 @@ from fairy.apps.building_world.room_loader import (
 from fairy.apps.building_world.schedule_app import ScheduleApp
 from fairy.apps.building_world.sensor_app import BuildingSensorApp
 from fairy.apps.building_world.sensor_hub import SensorHub
+from fairy.apps.building_world.sensor_shadow import (
+    SensorShadowComparison,
+    SensorShadowEvaluator,
+)
 from fairy.apps.building_world.types import (
     ActionResult,
     BuildingAction,
@@ -73,7 +78,10 @@ __all__ = [
     "ScheduleApp",
     "ScheduleEntry",
     "SensorHub",
+    "SensorShadowComparison",
+    "SensorShadowEvaluator",
     "VentilationApp",
     "ZoneSpec",
+    "build_building_metrics",
     "load_room_configuration",
 ]

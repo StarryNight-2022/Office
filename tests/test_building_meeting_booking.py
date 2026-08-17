@@ -183,6 +183,22 @@ def test_meeting_booking_oracle_replay_and_validation() -> None:
     assert report["validation"]["success"] is True
 
 
+def test_booking_validation_rejects_premature_device_activation() -> None:
+    build_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
+    oracle = build_engine.build_oracle_workflow(run_oracle=False)
+    replay_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
+    replayed = replay_engine.replay_workflow(oracle)
+    world = replay_engine.scenario.get_typed_app(BuildingWorldApp)
+    world.device_states["k1316_hvac_01"].power_on = True
+
+    report = replay_engine.evaluation_report(replayed)
+
+    assert report["validation"]["success"] is False
+    assert report["validation"]["metadata"]["active_device_ids"] == [
+        "k1316_hvac_01"
+    ]
+
+
 def test_meeting_booking_builds_agent_briefing_event() -> None:
     scenario = ScenarioBuildingKechuangRoomBooking()
 

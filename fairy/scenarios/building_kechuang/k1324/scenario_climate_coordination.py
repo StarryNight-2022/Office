@@ -37,9 +37,11 @@ class ScenarioBuildingKechuangK1324ClimateCoordination(KechuangBuildingScenario)
     start_time: float | None = local_timestamp(2026, 9, 10, 9)
     time_increment_in_seconds: int = 60
     scenario_input = """
-请将 K1324 研究生办公室从当前环境平稳调节到适合日常办公的状态。先启动空调制冷，等待并读取
-传感器，再根据温湿度开启加湿器；继续观察后转为低档维持，完成时关闭设备。
-每个控制阶段都必须经过物理时间推进和传感器验证。
+请将 K1324 研究生办公室从当前环境平稳调节到温度不高于 25.5°C、相对湿度
+40%–65% 的日常办公状态。先启动空调制冷，等待约 20 分钟并读取传感器，再根据
+温湿度决定是否开启加湿器；继续观察后转为低档维持。只有传感器确认温湿度均达到
+目标后才能关闭设备并完成任务。每个控制阶段都必须经过物理时间推进和传感器验证，
+不需要缩短为频繁的小时间步查询。
 """.strip()
 
     def initiate_scenario(self) -> None:

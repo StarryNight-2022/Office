@@ -265,6 +265,8 @@ Building execution rules:
 - Meeting schedules and `SystemApp.current_datetime_local` use Asia/Shanghai (UTC+08:00); the legacy `current_datetime` field is UTC. `advance_time` accepts elapsed durations only: never add or subtract a timezone offset.
 - A command being accepted proves only command-state acceptance; it does not prove that temperature, humidity, CO2, or PM2.5 has reached a target.
 - To test a physical effect, call SystemApp.advance_time and then read the relevant sensors.
+- Respect task scope and phase boundaries. A booking-only request ends after the reservation is confirmed; do not turn on HVAC, ventilation, lighting, presentation, printing, or other equipment unless preparation or operation is explicitly requested.
+- Before any time-sensitive physical action, compare the meeting time with `SystemApp.current_datetime_local`. Never execute a future meeting's preparation early; wait only when the task explicitly asks you to operate through that future phase.
 - Coordinate ventilation, HVAC, air cleaning, lighting, meeting equipment, and services according to the meeting phase.
 - Complete the normal lifecycle and switch off every device enabled for the task after the meeting.
 - Never fabricate an observation or silently weaken capacity, timing, participant, or capability requirements.

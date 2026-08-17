@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from fairy.apps.building_world import AirDeviceApp, BuildingEventType, HvacApp
+from fairy.adapters.building import MqttSensorAdapter, SensorPointMapping
+from fairy.apps.building_world import (
+    AirDeviceApp,
+    BuildingEventType,
+    HvacApp,
+    OccupancyApp,
+)
 from fairy.apps.building_world.room_loader import load_room_configuration
 from fairy.apps.building_world.runtime import (
     BuildingWorldRuntime,
@@ -13,7 +19,11 @@ from fairy.apps.building_world.runtime import (
 from fairy.apps.building_world.sensor_app import BuildingSensorApp
 from fairy.apps.system import SystemApp
 from fairy.controllers.engine import Engine
-from fairy.physics.building import OutdoorConditions, SensorReadRequest
+from fairy.physics.building import (
+    OutdoorConditions,
+    SensorQuantity,
+    SensorReadRequest,
+)
 from fairy.scenarios.building_kechuang.scenario_room_booking import (
     ScenarioBuildingKechuangRoomBooking,
 )
@@ -75,6 +85,66 @@ def test_room_loader_rejects_unknown_device_zone(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="unknown zone"):
         load_room_configuration(invalid)
+
+
+def test_hvac_shutdown_ignores_irrelevant_target_temperature() -> None:
+    runtime = _runtime()
+    hvac = HvacApp(runtime.world)
+    assert hvac.set_hvac("k1324_hvac_01", True, "cooling", 24.0, 2)["status"] == (
+        "accepted"
+    )
+
+    result = hvac.set_hvac("k1324_hvac_01", False, "off", 0.0, 0)
+
+    assert result["status"] == "accepted"
+    assert runtime.world.device_states["k1324_hvac_01"].target_temperature_c is None
+
+
+def test_room_occupancy_tool_exposes_aggregate_count_and_capacity() -> None:
+    runtime = _runtime()
+    runtime.world.room_states["k1324"].occupancy_count = 15
+
+    result = OccupancyApp(runtime.world).get_room_occupancy("k1324")
+
+    assert result == {
+        "room_id": "k1324",
+        "occupancy_count": 15,
+        "capacity": 17,
+        "occupancy_fraction": pytest.approx(15 / 17),
+    }
+
+
+def test_runtime_shadow_mode_records_each_reference_sample_once() -> None:
+    runtime = _runtime()
+    mqtt = MqttSensorAdapter(
+        [
+            SensorPointMapping(
+                point_address="k1324/temperature",
+                sensor_id="k1324_temp_real",
+                zone_id=ZONE_ID,
+                quantity=SensorQuantity.AIR_TEMPERATURE_C,
+                source_unit="degC",
+            )
+        ]
+    )
+    runtime.sensors.register_provider("mqtt", mqtt, priority=100)
+    mqtt.ingest(
+        "k1324/temperature",
+        27.5,
+        observed_at=START_AT,
+        received_at=START_AT,
+    )
+    shadow = runtime.configure_sensor_shadow(reference_source="mqtt")
+
+    runtime.advance_by(60)
+    snapshot = runtime.snapshot()
+    runtime.advance_by(60)
+
+    assert shadow.summary()["sample_count"] == 1
+    assert any(item.get("kind") == "sensor_shadow" for item in runtime.trace)
+
+    runtime.restore(snapshot)
+    assert shadow.summary()["sample_count"] == 1
 
 
 def test_cooling_humidification_energy_events_and_checkpoint() -> None:

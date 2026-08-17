@@ -355,6 +355,11 @@ class Engine:
         }
 
     def outcome_summary(self) -> dict[str, Any]:
+        building_runtime = getattr(self.scenario, "building_runtime", None)
+        if building_runtime is not None:
+            from fairy.apps.building_world.metrics import build_building_metrics
+
+            return {"building": build_building_metrics(building_runtime)}
         farm_world = next(
             (
                 app

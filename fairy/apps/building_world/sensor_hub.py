@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Sequence
 
 from fairy.physics.building.sensor_api import (
     InMemorySensorProvider,
@@ -117,11 +117,20 @@ class SensorHub(SensorProvider, SensorPublisher):
         quantities: Sequence[SensorQuantity] = tuple(SensorQuantity),
     ) -> list[SensorReading]:
         return self.read(
-            SensorReadRequest(
-                at_time=at_time,
-                zone_ids=self.zone_ids,
-                quantities=tuple(quantities),
-            )
+            self.read_all_request(at_time, quantities)
+        )
+
+    def read_all_request(
+        self,
+        at_time: datetime,
+        quantities: Sequence[SensorQuantity] = tuple(SensorQuantity),
+    ) -> SensorReadRequest:
+        """Build the canonical all-zone request used by reads and evaluators."""
+
+        return SensorReadRequest(
+            at_time=at_time,
+            zone_ids=self.zone_ids,
+            quantities=tuple(quantities),
         )
 
     def health(self, at_time: datetime, stale_after_seconds: float) -> list[dict]:

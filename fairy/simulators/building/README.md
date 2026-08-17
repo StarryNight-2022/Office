@@ -66,12 +66,17 @@ subscriber = MqttSensorSubscriber(
     adapter,
 )
 runtime.sensors.register_provider("kechuang_mqtt", adapter, priority=100)
+runtime.configure_sensor_shadow(reference_source="kechuang_mqtt")
 subscriber.start()
 ```
 
 进程退出时必须调用 `subscriber.stop()`。真实 MQTT Provider 使用较高优先级后，
 Agent 读取真实/回环 MQTT 数据；Runtime 内部观测仍保留，可通过
 `SensorHub.read_by_source()` 做 Shadow Mode 对比。
+Runtime 每个物理时间步会把新匹配样本写入 `sensor_shadow` trace，并通过统一 Building
+指标按 zone/quantity 分别输出 bias、MAE、RMSE、最大绝对误差和时间偏移，不会
+混合温度、湿度与 ppm 等不同单位。默认只比较采样时间相差不超过 300 秒的读数。
+Shadow Mode 只比较观测，不会用实测值覆盖物理真值。
 
 ## 时间模式
 

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.room_loader import LoadedRoomConfiguration
 from fairy.apps.building_world.sensor_hub import SensorHub
+from fairy.apps.building_world.sensor_shadow import SensorShadowEvaluator
 from fairy.apps.building_world.types import (
     BuildingEvent,
     BuildingEventType,
@@ -78,6 +79,7 @@ class BuildingWorldRuntime:
         self.trigger_policy = trigger_policy or BuildingTriggerPolicy()
         self.max_timestep_seconds = float(max_timestep_seconds)
         self.trace: list[dict[str, object]] = []
+        self.sensor_shadow: SensorShadowEvaluator | None = None
         # Handlers apply external facts to canonical state before those facts
         # are published.  Scenario-specific callbacks stay outside the queue,
         # keeping the queue serializable and replay-stable.
@@ -198,6 +200,22 @@ class BuildingWorldRuntime:
 
         return self.event_queue.cancel(scheduled_id)
 
+    def configure_sensor_shadow(
+        self,
+        *,
+        reference_source: str,
+        candidate_source: str = "published",
+        max_alignment_seconds: float = 300.0,
+    ) -> SensorShadowEvaluator:
+        """Enable passive observation comparison without changing physics truth."""
+
+        self.sensor_shadow = SensorShadowEvaluator(
+            reference_source=reference_source,
+            candidate_source=candidate_source,
+            max_alignment_seconds=max_alignment_seconds,
+        )
+        return self.sensor_shadow
+
     def register_event_handler(
         self,
         event_type: BuildingEventType,
@@ -253,7 +271,8 @@ class BuildingWorldRuntime:
             )
             self.current_time = step_at
             self._publish_step_events(step)
-            self._record_trace(step)
+            self._record_trace(step, timestep)
+            self._record_sensor_shadow()
             steps.append(step)
         return RuntimeAdvanceResult(
             started_at,
@@ -272,6 +291,9 @@ class BuildingWorldRuntime:
             "event_queue": self.event_queue.snapshot(),
             "world_event_cursor": self._world_event_cursor,
             "trace": list(self.trace),
+            "sensor_shadow": (
+                self.sensor_shadow.snapshot() if self.sensor_shadow is not None else None
+            ),
         }
 
     def restore(self, snapshot: Mapping[str, object]) -> None:
@@ -289,6 +311,9 @@ class BuildingWorldRuntime:
         if not 0 <= self._world_event_cursor <= len(self.world.events):
             raise ValueError("runtime snapshot has invalid world_event_cursor")
         self.trace = list(snapshot.get("trace", []))  # type: ignore[arg-type]
+        shadow_snapshot = snapshot.get("sensor_shadow")
+        if self.sensor_shadow is not None and isinstance(shadow_snapshot, Mapping):
+            self.sensor_shadow.restore(shadow_snapshot)
 
     def _consume_due_events(self) -> None:
         """Apply and publish all scheduled facts due at the current time."""
@@ -401,14 +426,20 @@ class BuildingWorldRuntime:
                 payload={"condition": event.condition, **dict(event.payload)},
             )
 
-    def _record_trace(self, step: BuildingPhysicsStepResult) -> None:
+    def _record_trace(
+        self, step: BuildingPhysicsStepResult, timestep_seconds: float
+    ) -> None:
         self.trace.append(
             {
                 "kind": "physics_step",
                 "at_time": step.at_time.isoformat(),
+                "timestep_seconds": timestep_seconds,
                 "zones": [
                     {
                         "zone_id": result.zone_id,
+                        "occupancy_count": self.world.room_states[
+                            self.world.zones[result.zone_id].room_id
+                        ].occupancy_count,
                         "air_temperature_c": result.air_temperature_c,
                         "relative_humidity_pct": result.relative_humidity_pct,
                         "co2_ppm": result.co2_ppm,
@@ -423,6 +454,29 @@ class BuildingWorldRuntime:
                 "observation_count": len(step.observations),
             }
         )
+
+    def _record_sensor_shadow(self) -> None:
+        """Record any newly aligned real/simulated samples in the runtime trace."""
+
+        if self.sensor_shadow is None:
+            return
+        request = self.sensors.read_all_request(self.current_time)
+        for comparison in self.sensor_shadow.sample(self.sensors, request):
+            self.trace.append(
+                {
+                    "kind": "sensor_shadow",
+                    "at_time": comparison.compared_at.isoformat(),
+                    "zone_id": comparison.zone_id,
+                    "quantity": comparison.quantity.value,
+                    "reference_sensor_id": comparison.reference_sensor_id,
+                    "candidate_sensor_id": comparison.candidate_sensor_id,
+                    "reference_value": comparison.reference_value,
+                    "candidate_value": comparison.candidate_value,
+                    "signed_error": comparison.signed_error,
+                    "absolute_error": comparison.absolute_error,
+                    "time_offset_seconds": comparison.time_offset_seconds,
+                }
+            )
 
 
 def constant_outdoor_provider(

@@ -11,6 +11,7 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from threading import Event
 from typing import Any, Protocol, Self
 
 from fairy.adapters.building.mqtt_sensor_adapter import MqttSensorAdapter
@@ -33,7 +34,7 @@ class MqttClient(Protocol):
 
     def publish(
         self, topic: str, payload: str, qos: int = 0, retain: bool = False
-    ) -> Any: ...
+    ) -> MqttPublishResult: ...
 
     def subscribe(self, topic: str, qos: int = 0) -> Any: ...
 
@@ -47,6 +48,16 @@ class MqttMessage(Protocol):
 
     topic: str
     payload: bytes
+
+
+class MqttPublishResult(Protocol):
+    """Delivery handle returned by paho's ``publish`` method."""
+
+    rc: int
+
+    def wait_for_publish(self, timeout: float | None = None) -> None: ...
+
+    def is_published(self) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -101,15 +112,25 @@ class MqttSensorPublisher:
         topic_by_sensor_id: Mapping[str, str],
         *,
         client: MqttClient | None = None,
+        connection_timeout_seconds: float = 10.0,
+        publish_timeout_seconds: float = 10.0,
     ) -> None:
         if not topic_by_sensor_id:
             raise ValueError("at least one MQTT sensor topic is required")
         if len(set(topic_by_sensor_id.values())) != len(topic_by_sensor_id):
             raise ValueError("MQTT sensor topics must be unique")
         self.settings = settings
+        if connection_timeout_seconds <= 0:
+            raise ValueError("MQTT connection timeout must be positive")
+        if publish_timeout_seconds <= 0:
+            raise ValueError("MQTT publish timeout must be positive")
+        self.connection_timeout_seconds = float(connection_timeout_seconds)
+        self.publish_timeout_seconds = float(publish_timeout_seconds)
         self.topic_by_sensor_id = dict(topic_by_sensor_id)
         self.client = client or _create_paho_client(settings.client_id)
         _configure_client(self.client, settings)
+        self._connected = Event()
+        self.client.on_connect = self._on_connect
         self.started = False
 
     def start(self) -> None:
@@ -123,6 +144,10 @@ class MqttSensorPublisher:
             self.settings.keepalive_seconds,
         )
         self.client.loop_start()
+        if not self._connected.wait(self.connection_timeout_seconds):
+            self.client.loop_stop()
+            self.client.disconnect()
+            raise TimeoutError("timed out waiting for MQTT publisher connection")
         self.started = True
 
     def publish(self, reading: SensorReading) -> None:
@@ -142,9 +167,14 @@ class MqttSensorPublisher:
             qos=self.settings.qos,
             retain=self.settings.retain,
         )
-        result_code = getattr(result, "rc", 0)
-        if result_code != 0:
-            raise RuntimeError(f"MQTT publish failed with result code {result_code}")
+        if result.rc != 0:
+            raise RuntimeError(f"MQTT publish failed with result code {result.rc}")
+        # Accelerated simulations may exit immediately after a burst. Waiting
+        # for each delivery prevents the final messages from being discarded
+        # when the network loop is stopped.
+        result.wait_for_publish(timeout=self.publish_timeout_seconds)
+        if not result.is_published():
+            raise TimeoutError("MQTT publish confirmation timed out")
 
     def stop(self) -> None:
         """Disconnect cleanly; repeated calls are safe."""
@@ -153,7 +183,19 @@ class MqttSensorPublisher:
             return
         self.client.disconnect()
         self.client.loop_stop()
+        self._connected.clear()
         self.started = False
+
+    def _on_connect(
+        self,
+        _client: MqttClient,
+        _userdata: object,
+        _flags: object,
+        reason_code: object,
+        _properties: object | None = None,
+    ) -> None:
+        if reason_code == 0:
+            self._connected.set()
 
     def __enter__(self) -> Self:
         self.start()
@@ -173,6 +215,7 @@ class MqttSensorSubscriber:
         *,
         client: MqttClient | None = None,
         on_error: Callable[[Exception, str], None] | None = None,
+        connection_timeout_seconds: float = 10.0,
     ) -> None:
         if not adapter.point_mappings:
             raise ValueError("MQTT subscriber requires at least one point mapping")
@@ -180,7 +223,11 @@ class MqttSensorSubscriber:
         self.adapter = adapter
         self.client = client or _create_paho_client(settings.client_id)
         self.on_error = on_error
+        if connection_timeout_seconds <= 0:
+            raise ValueError("MQTT connection timeout must be positive")
+        self.connection_timeout_seconds = float(connection_timeout_seconds)
         self.errors: list[tuple[str, Exception]] = []
+        self._connected = Event()
         self.started = False
         _configure_client(self.client, settings)
         self.client.on_connect = self._on_connect
@@ -195,6 +242,10 @@ class MqttSensorSubscriber:
             self.settings.keepalive_seconds,
         )
         self.client.loop_start()
+        if not self._connected.wait(self.connection_timeout_seconds):
+            self.client.loop_stop()
+            self.client.disconnect()
+            raise TimeoutError("timed out waiting for MQTT subscriber connection")
         self.started = True
 
     def stop(self) -> None:
@@ -202,6 +253,7 @@ class MqttSensorSubscriber:
             return
         self.client.disconnect()
         self.client.loop_stop()
+        self._connected.clear()
         self.started = False
 
     def _on_connect(
@@ -219,6 +271,7 @@ class MqttSensorSubscriber:
                 RuntimeError(f"MQTT connection failed: {reason_code}"), "<connect>"
             )
             return
+        self._connected.set()
         for topic in self.adapter.point_mappings:
             self.client.subscribe(topic, qos=self.settings.qos)
 

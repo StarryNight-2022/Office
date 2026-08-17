@@ -42,7 +42,10 @@ class HvacApp(App):
             return _rejected("device_unavailable", health=state.health.value)
         if mode not in {"off", "cooling", "heating", "fan"}:
             return _rejected("unsupported_mode", mode=mode)
-        if not 16.0 <= target_temperature_c <= 30.0:
+        # Target temperature has no physical meaning while powered off. Real
+        # gateways may still require it in a fixed command schema, so discard
+        # any caller value in the off state instead of rejecting shutdown.
+        if power_on and not 16.0 <= target_temperature_c <= 30.0:
             return _rejected("target_temperature_out_of_range")
         if power_on and mode == "off":
             return _rejected("active_hvac_requires_operating_mode")

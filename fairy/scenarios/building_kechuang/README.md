@@ -14,6 +14,7 @@ building_kechuang/
 │   ├── scenario_climate_coordination.py
 │   └── scenario_occupancy_ramp.py
 ├── k1316/                      # 研讨室专属场景入口
+│   └── scenario_seminar_standard.py
 └── k1315/
     └── scenario_conference_standard.py
 ```
@@ -26,6 +27,7 @@ building_kechuang/
 | `scenario_building_kechuang_k1324_climate_coordination` | K1324 | 办公室温湿度观测反馈控制 |
 | `scenario_building_kechuang_k1324_occupancy_ramp` | K1324 | 工作日人数变化、CO₂ 上升与空房恢复 |
 | `scenario_building_kechuang_k1315_conference_standard` | K1315 | 12 人正式会议的环境、打印、灯光、投影音响与会后清理 |
+| `scenario_building_kechuang_k1316_seminar_standard` | K1316 | 8 人研讨的环境预处理、投影准备、会中通风与会后清理 |
 
 每个运行型场景同时包含：
 
@@ -34,6 +36,7 @@ building_kechuang/
 3. `validate()` 中不可由自然语言报告替代的最终状态判定。
 
 候选场景与优先级见 `scenario_catalog.md`。
+真实模型首轮工程实验结果和已暴露问题见 `experiment_status.md`。
 
 ## 命名迁移
 

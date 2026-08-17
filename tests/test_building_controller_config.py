@@ -21,6 +21,12 @@ def test_building_controller_uses_domain_prompt_and_is_discoverable() -> None:
         "never add or subtract a timezone offset"
         in config.base_agent_config.system_prompt
     )
+    assert "A booking-only request ends after the reservation" in (
+        config.base_agent_config.system_prompt
+    )
+    assert "Never execute a future meeting's preparation early" in (
+        config.base_agent_config.system_prompt
+    )
 
 
 def test_prompt_selection_uses_scenario_domain_without_mislabeling_default() -> None:

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+
+import pytest
 
 from fairy.adapters.building import (
     MqttConnectionSettings,
@@ -13,6 +17,7 @@ from fairy.adapters.building import (
     MqttSensorSubscriber,
 )
 from fairy.apps.building_world.room_loader import load_room_configuration
+from fairy.apps.building_world.sensor_hub import SensorHub
 from fairy.physics.building import (
     SensorQuality,
     SensorQuantity,
@@ -40,6 +45,8 @@ class FakeMqttClient:
 
     def connect(self, host: str, port: int, keepalive: int) -> None:
         self.calls.append(("connect", host, port, keepalive))
+        if self.on_connect is not None:
+            self.on_connect(self, None, None, 0, None)
 
     def disconnect(self) -> None:
         self.calls.append(("disconnect",))
@@ -52,9 +59,9 @@ class FakeMqttClient:
 
     def publish(
         self, topic: str, payload: str, qos: int = 0, retain: bool = False
-    ) -> SimpleNamespace:
+    ) -> FakePublishResult:
         self.calls.append(("publish", topic, payload, qos, retain))
-        return SimpleNamespace(rc=0)
+        return FakePublishResult()
 
     def subscribe(self, topic: str, qos: int = 0) -> None:
         self.calls.append(("subscribe", topic, qos))
@@ -64,6 +71,20 @@ class FakeMqttClient:
 
     def tls_set(self, **kwargs: Any) -> None:
         self.calls.append(("tls", kwargs))
+
+
+class FakePublishResult:
+    rc = 0
+
+    def __init__(self) -> None:
+        self.confirmed = False
+
+    def wait_for_publish(self, timeout: float | None = None) -> None:
+        assert timeout is not None and timeout > 0
+        self.confirmed = True
+
+    def is_published(self) -> bool:
+        return self.confirmed
 
 
 class RecordingPublisher:
@@ -127,7 +148,6 @@ def test_mqtt_subscriber_resubscribes_and_feeds_adapter() -> None:
     )
 
     subscriber.start()
-    client.on_connect(client, None, None, 0, None)
     topic = "kechuang/k1324/environment/temperature"
     client.on_message(
         client,
@@ -171,3 +191,81 @@ def test_building_simulator_publishes_only_new_physical_observations() -> None:
     assert build_sensor_topics((configuration,))["k1316_co2_01"] == (
         "kechuang/k1316/environment/co2"
     )
+
+
+@pytest.mark.skipif(
+    "FAIRY_MQTT_TEST_PORT" not in os.environ,
+    reason="requires an explicitly configured local MQTT broker",
+)
+def test_live_broker_round_trip_reaches_sensor_hub() -> None:
+    """Optional acceptance test covering the actual paho/Broker callbacks."""
+
+    configuration = load_room_configuration(ROOM_CONFIG_DIRECTORY / "k1316.yaml")
+    mappings = build_sensor_point_mappings((configuration,))
+    topics = build_sensor_topics((configuration,))
+    adapter = MqttSensorAdapter(mappings)
+    hub = SensorHub(["k1316_seminar_zone"])
+    hub.register_provider("mqtt", adapter, priority=100)
+    port = int(os.environ["FAIRY_MQTT_TEST_PORT"])
+    subscriber = MqttSensorSubscriber(
+        MqttConnectionSettings(
+            host="127.0.0.1",
+            port=port,
+            client_id="fairy-test-subscriber",
+        ),
+        adapter,
+    )
+    publisher = MqttSensorPublisher(
+        MqttConnectionSettings(
+            host="127.0.0.1",
+            port=port,
+            client_id="fairy-test-publisher",
+        ),
+        topics,
+    )
+    observed_at = datetime.now(timezone.utc)
+    mqtt_reading = SensorReading(
+        sensor_id="k1316_temp_01",
+        zone_id="k1316_seminar_zone",
+        quantity=SensorQuantity.AIR_TEMPERATURE_C,
+        value=25.25,
+        unit="degC",
+        observed_at=observed_at,
+    )
+    # A lower-priority local reading proves that SensorHub selects MQTT after
+    # the network round trip, not merely that the adapter received a message.
+    hub.publish(
+        SensorReading(
+            sensor_id="k1316_temp_sim",
+            zone_id="k1316_seminar_zone",
+            quantity=SensorQuantity.AIR_TEMPERATURE_C,
+            value=21.0,
+            unit="degC",
+            observed_at=observed_at,
+        )
+    )
+
+    try:
+        subscriber.start()
+        publisher.start()
+        publisher.publish(mqtt_reading)
+        deadline = time.monotonic() + 3.0
+        selected: list[SensorReading] = []
+        while time.monotonic() < deadline:
+            selected = hub.read(
+                SensorReadRequest(
+                    at_time=datetime.now(timezone.utc) + timedelta(seconds=1),
+                    zone_ids=("k1316_seminar_zone",),
+                    quantities=(SensorQuantity.AIR_TEMPERATURE_C,),
+                )
+            )
+            if selected and selected[0].sensor_id == "k1316_temp_01":
+                break
+            time.sleep(0.05)
+    finally:
+        publisher.stop()
+        subscriber.stop()
+
+    assert selected[0].sensor_id == "k1316_temp_01"
+    assert selected[0].value == 25.25
+    assert subscriber.errors == []

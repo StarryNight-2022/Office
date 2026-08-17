@@ -175,6 +175,22 @@ paho-mqtt 负责认证、订阅和重连，并在回调中调用 `adapter.on_mes
 
 禁止在 Scenario、SensorApp 或 ScheduleApp 中复制另一层的可变状态。
 
+### 3.1 统一实验指标
+
+`Engine.outcome_summary()` 会在 Building 场景中调用 `build_building_metrics()`，
+并将结果写入 `run_report.json` 的 `outcome.building`。统一字段包括：
+
+- 分区与总累计能耗；
+- 舒适度和空气质量越界时长；
+- CO₂/PM2.5 峰值和最低舒适度；
+- Building 事件、Agent 唤醒和设备动作数量；
+- 运行结束时仍开启的设备和未释放的预约；
+- 房间、zone、设备和传感器规模；
+- 启用 Shadow Mode 时各 zone/quantity 的 bias、MAE、RMSE、最大绝对误差和时间偏移。
+
+`scripts/summarize_runs.py` 可将这些指标与 LLM 调用、token、任务成功率一起汇总为
+TSV 或 CSV，供跨场景和跨 Controller 比较。
+
 当前空间模型如下：
 
 | 房间 | 类型 | 容量 | 可预约 | 功能结构 |

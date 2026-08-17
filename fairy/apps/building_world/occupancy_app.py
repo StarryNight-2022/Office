@@ -34,6 +34,24 @@ class OccupancyApp(App):
             "current_zone_id": person.current_zone_id,
         }
 
+    @type_check
+    @app_tool()
+    @data_tool()
+    @event_registered(operation_type=OperationType.READ)
+    def get_room_occupancy(self, room_id: str) -> dict[str, Any]:
+        """Return the aggregate observable occupancy count for one room."""
+
+        room = self.world.rooms.get(room_id)
+        state = self.world.room_states.get(room_id)
+        if room is None or state is None:
+            return {"error": f"unknown room_id {room_id!r}"}
+        return {
+            "room_id": room_id,
+            "occupancy_count": state.occupancy_count,
+            "capacity": room.capacity,
+            "occupancy_fraction": state.occupancy_count / room.capacity,
+        }
+
     def set_person_presence(
         self, person_id: str, on_campus: bool, zone_id: str | None = None
     ) -> dict[str, Any]:

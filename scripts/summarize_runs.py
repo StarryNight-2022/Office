@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 FIELDS = [
     "run_dir",
     "run_type",
@@ -25,6 +24,14 @@ FIELDS = [
     "warehouse_grain_kg",
     "harvested_ridges",
     "yield_g_m2",
+    "building_energy_kwh",
+    "comfort_violation_zone_minutes",
+    "occupied_comfort_violation_zone_minutes",
+    "air_quality_violation_zone_minutes",
+    "unoccupied_energy_kwh",
+    "building_agent_wake_count",
+    "building_active_device_count",
+    "building_active_reservation_count",
 ]
 
 
@@ -39,6 +46,16 @@ def nested(data: dict[str, Any], path: str, default: Any = None) -> Any:
 
 def row_from_report(path: Path) -> dict[str, Any]:
     report = json.loads(path.read_text(encoding="utf-8"))
+    building_zones = nested(report, "outcome.building.environment.by_zone", [])
+    comfort_seconds = _sum_zone_values(
+        building_zones, "comfort_violation_seconds"
+    )
+    occupied_comfort_seconds = _sum_zone_values(
+        building_zones, "occupied_comfort_violation_seconds"
+    )
+    air_quality_seconds = _sum_zone_values(
+        building_zones, "air_quality_violation_seconds"
+    )
     return {
         "run_dir": str(path.parent),
         "run_type": report.get("run_type"),
@@ -60,7 +77,47 @@ def row_from_report(path: Path) -> dict[str, Any]:
             report,
             "outcome.yield_recovery.avg_recovered_yield_g_m2_at_market_moisture",
         ),
+        "building_energy_kwh": nested(
+            report, "outcome.building.energy.total_kwh"
+        ),
+        "comfort_violation_zone_minutes": (
+            comfort_seconds / 60.0 if comfort_seconds is not None else None
+        ),
+        "occupied_comfort_violation_zone_minutes": (
+            occupied_comfort_seconds / 60.0
+            if occupied_comfort_seconds is not None
+            else None
+        ),
+        "air_quality_violation_zone_minutes": (
+            air_quality_seconds / 60.0
+            if air_quality_seconds is not None
+            else None
+        ),
+        "unoccupied_energy_kwh": _sum_zone_values(
+            building_zones, "unoccupied_energy_kwh"
+        ),
+        "building_agent_wake_count": nested(
+            report, "outcome.building.events.agent_wake_count"
+        ),
+        "building_active_device_count": len(
+            nested(report, "outcome.building.resources.active_device_ids", [])
+        ),
+        "building_active_reservation_count": len(
+            nested(report, "outcome.building.resources.active_reservation_ids", [])
+        ),
     }
+
+
+def _sum_zone_values(zones: Any, key: str) -> float | None:
+    if not isinstance(zones, list):
+        return None
+    matching = [zone for zone in zones if isinstance(zone, dict) and key in zone]
+    if not matching:
+        return None
+    return sum(
+        float(zone.get(key, 0.0))
+        for zone in matching
+    )
 
 
 def main() -> None:

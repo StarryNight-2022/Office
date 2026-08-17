@@ -7,7 +7,11 @@ from fairy.adapters.building import (
     SensorPointMapping,
     SimulatedSensorAdapter,
 )
-from fairy.apps.building_world import BuildingSensorApp, SensorHub
+from fairy.apps.building_world import (
+    BuildingSensorApp,
+    SensorHub,
+    SensorShadowEvaluator,
+)
 from fairy.physics.building import (
     BuildingObservationModel,
     BuildingPhysicsOrchestrator,
@@ -19,7 +23,6 @@ from fairy.physics.building import (
     ZoneParameters,
     ZoneState,
 )
-
 
 NOW = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -110,3 +113,78 @@ def test_orchestrator_publishes_simulated_reading_to_sensor_app() -> None:
 
     assert response["readings"][0]["sensor_id"] == "temp-sim"
     assert "truth_value" not in response["readings"][0]
+
+
+def test_shadow_evaluator_records_bias_mae_and_avoids_duplicate_samples() -> None:
+    hub = SensorHub(["meeting"])
+    simulated = SimulatedSensorAdapter(
+        [
+            SensorPointMapping(
+                point_address="temp-sim",
+                sensor_id="temp-sim",
+                zone_id="meeting",
+                quantity=SensorQuantity.AIR_TEMPERATURE_C,
+                source_unit="degC",
+            )
+        ]
+    )
+    real = SimulatedSensorAdapter(
+        [
+            SensorPointMapping(
+                point_address="temp-real",
+                sensor_id="temp-real",
+                zone_id="meeting",
+                quantity=SensorQuantity.AIR_TEMPERATURE_C,
+                source_unit="degC",
+            )
+        ]
+    )
+    hub.register_provider("simulation", simulated)
+    hub.register_provider("mqtt", real, priority=100)
+    simulated.ingest("temp-sim", 24.0, observed_at=NOW, received_at=NOW)
+    real.ingest("temp-real", 25.5, observed_at=NOW, received_at=NOW)
+    request = hub.read_all_request(NOW)
+    evaluator = SensorShadowEvaluator(
+        reference_source="mqtt", candidate_source="simulation"
+    )
+
+    comparisons = evaluator.sample(hub, request)
+    duplicate = evaluator.sample(hub, request)
+    summary = evaluator.summary()
+
+    assert comparisons[0].signed_error == -1.5
+    assert duplicate == ()
+    assert summary["sample_count"] == 1
+    assert summary["point_count"] == 1
+    assert summary["by_point"][0] == {
+        "zone_id": "meeting",
+        "quantity": "air_temperature_c",
+        "count": 1,
+        "bias": -1.5,
+        "mae": 1.5,
+        "rmse": 1.5,
+        "max_absolute_error": 1.5,
+    }
+
+    restored = SensorShadowEvaluator(
+        reference_source="mqtt", candidate_source="simulation"
+    )
+    restored.restore(evaluator.snapshot())
+    assert restored.summary() == summary
+    assert restored.sample(hub, request) == ()
+
+    simulated.ingest(
+        "temp-sim",
+        24.1,
+        observed_at=NOW + timedelta(seconds=301),
+        received_at=NOW + timedelta(seconds=301),
+    )
+    strict = SensorShadowEvaluator(
+        reference_source="mqtt",
+        candidate_source="simulation",
+        max_alignment_seconds=60,
+    )
+    assert strict.sample(
+        hub,
+        hub.read_all_request(NOW + timedelta(seconds=301)),
+    ) == ()
