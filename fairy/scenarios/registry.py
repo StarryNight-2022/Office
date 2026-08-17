@@ -45,7 +45,7 @@ def _import_known_scenarios() -> None:
         "fairy.scenarios.farm_worldpp_physics",
         "fairy.scenarios.farm_world_fullseason",
         "fairy.scenarios.farm_world_fullseason_v2",
-        "fairy.scenarios.building_k1324",
+        "fairy.scenarios.building_kechuang",
     ):
         mod = importlib.import_module(package)
         for info in pkgutil.walk_packages(mod.__path__, package + "."):

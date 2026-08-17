@@ -13,13 +13,13 @@ from fairy.apps.building_world import (
     HvacApp,
 )
 from fairy.apps.system import SystemApp
-from fairy.scenarios.building_k1324.base import (
+from fairy.scenarios.building_kechuang.base import (
     CST,
-    K1324BuildingScenario,
+    KechuangBuildingScenario,
     collect_event_graph,
     local_timestamp,
 )
-from fairy.scenarios.building_k1324.meeting_lifecycle import (
+from fairy.scenarios.building_kechuang.meeting_lifecycle import (
     MeetingPhase,
     install_normal_lifecycle,
 )
@@ -30,8 +30,8 @@ from fairy.types import EventRegisterer
 ZONE_ID = "k1324_office_zone"
 
 
-@register_scenario("scenario_building_k1324_climate_coordination")
-class ScenarioBuildingK1324ClimateCoordination(K1324BuildingScenario):
+@register_scenario("scenario_building_kechuang_k1324_climate_coordination")
+class ScenarioBuildingKechuangK1324ClimateCoordination(KechuangBuildingScenario):
     """Coordinate cooling and humidification using periodic observations."""
 
     start_time: float | None = local_timestamp(2026, 9, 10, 9)

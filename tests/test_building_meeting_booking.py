@@ -14,10 +14,10 @@ from fairy.apps.building_world.types import (
     RoomSpec,
 )
 from fairy.controllers.engine import Engine
-from fairy.scenarios.building_k1324.scenario_meeting_booking import (
+from fairy.scenarios.building_kechuang.scenario_room_booking import (
     END_AT,
     START_AT,
-    ScenarioBuildingK1324MeetingBooking,
+    ScenarioBuildingKechuangRoomBooking,
 )
 from fairy.scenarios.registry import get_scenario_class
 
@@ -164,9 +164,9 @@ def test_snapshot_restore_preserves_meeting_and_id_sequence() -> None:
 
 
 def test_meeting_booking_oracle_replay_and_validation() -> None:
-    build_engine = Engine(None, ScenarioBuildingK1324MeetingBooking())
+    build_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
     oracle = build_engine.build_oracle_workflow(run_oracle=False)
-    replay_engine = Engine(None, ScenarioBuildingK1324MeetingBooking())
+    replay_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
 
     replayed = replay_engine.replay_workflow(oracle)
     report = replay_engine.evaluation_report(replayed)
@@ -184,7 +184,7 @@ def test_meeting_booking_oracle_replay_and_validation() -> None:
 
 
 def test_meeting_booking_builds_agent_briefing_event() -> None:
-    scenario = ScenarioBuildingK1324MeetingBooking()
+    scenario = ScenarioBuildingKechuangRoomBooking()
 
     scenario.setup()
 
@@ -196,6 +196,6 @@ def test_meeting_booking_builds_agent_briefing_event() -> None:
 
 
 def test_building_scenario_is_registered() -> None:
-    assert get_scenario_class("scenario_building_k1324_meeting_booking") is (
-        ScenarioBuildingK1324MeetingBooking
+    assert get_scenario_class("scenario_building_kechuang_room_booking") is (
+        ScenarioBuildingKechuangRoomBooking
     )

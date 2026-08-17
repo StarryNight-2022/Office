@@ -12,13 +12,13 @@ from fairy.apps.building_world import (
     HvacApp,
 )
 from fairy.apps.system import SystemApp
-from fairy.scenarios.building_k1324.base import (
+from fairy.scenarios.building_kechuang.base import (
     CST,
-    K1324BuildingScenario,
+    KechuangBuildingScenario,
     collect_event_graph,
     local_timestamp,
 )
-from fairy.scenarios.building_k1324.meeting_lifecycle import (
+from fairy.scenarios.building_kechuang.meeting_lifecycle import (
     MeetingPhase,
     install_normal_lifecycle,
 )
@@ -30,8 +30,8 @@ ZONE_ID = "k1324_office_zone"
 OCCUPANCY_TIMELINE = ((10, 5), (20, 10), (30, 15), (45, 10), (55, 5), (65, 0))
 
 
-@register_scenario("scenario_building_k1324_occupancy_ramp")
-class ScenarioBuildingK1324OccupancyRamp(K1324BuildingScenario):
+@register_scenario("scenario_building_kechuang_k1324_occupancy_ramp")
+class ScenarioBuildingKechuangK1324OccupancyRamp(KechuangBuildingScenario):
     """Observe CO2 as attendees enter and leave in normal planned batches."""
 
     start_time: float | None = local_timestamp(2026, 9, 10, 9)

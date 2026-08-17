@@ -14,8 +14,8 @@ from fairy.apps.building_world.sensor_app import BuildingSensorApp
 from fairy.apps.system import SystemApp
 from fairy.controllers.engine import Engine
 from fairy.physics.building import OutdoorConditions, SensorReadRequest
-from fairy.scenarios.building_k1324.scenario_meeting_booking import (
-    ScenarioBuildingK1324MeetingBooking,
+from fairy.scenarios.building_kechuang.scenario_room_booking import (
+    ScenarioBuildingKechuangRoomBooking,
 )
 
 CONFIG_PATH = Path(__file__).parents[1] / "fairy" / "configs" / "rooms" / "k1324.yaml"
@@ -126,7 +126,7 @@ def test_cooling_humidification_energy_events_and_checkpoint() -> None:
 
 
 def test_k1324_system_time_advance_drives_runtime_and_sensor_app() -> None:
-    scenario = ScenarioBuildingK1324MeetingBooking()
+    scenario = ScenarioBuildingKechuangRoomBooking()
     engine = Engine(None, scenario)
     engine.build_oracle_workflow(run_oracle=False)
     hvac = scenario.get_typed_app(HvacApp)
@@ -147,7 +147,7 @@ def test_k1324_system_time_advance_drives_runtime_and_sensor_app() -> None:
 
 
 def test_scenario_base_assembles_three_distinct_room_models() -> None:
-    scenario = ScenarioBuildingK1324MeetingBooking()
+    scenario = ScenarioBuildingKechuangRoomBooking()
     Engine(None, scenario).build_oracle_workflow(run_oracle=False)
     world = scenario.building_runtime.world
 

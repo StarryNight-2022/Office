@@ -1,4 +1,4 @@
-"""Reusable K1324 application wiring and static scenario fixtures."""
+"""Reusable Kechuang building application wiring and shared fixtures."""
 
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ def collect_event_graph(root: Any) -> list[Any]:
     return ordered
 
 
-class K1324BuildingScenario(Scenario):
-    """Base fixture shared by meeting and future conference scenarios."""
+class KechuangBuildingScenario(Scenario):
+    """Base fixture shared by all K1324, K1316 and K1315 scenarios."""
 
     start_time: float | None = local_timestamp(2026, 9, 9, 9)
     time_increment_in_seconds: int = 60

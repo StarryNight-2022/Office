@@ -1,10 +1,10 @@
-"""Reusable normal meeting phases for K1324 scenario experiments."""
+"""Reusable normal meeting phases for Kechuang room scenarios."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Mapping, Sequence
 
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
 from fairy.apps.building_world.runtime import BuildingWorldRuntime

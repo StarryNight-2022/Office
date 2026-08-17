@@ -21,13 +21,13 @@ from fairy.apps.building_world import (
     VentilationApp,
 )
 from fairy.apps.system import SystemApp
-from fairy.scenarios.building_k1324.base import (
+from fairy.scenarios.building_kechuang.base import (
     CST,
-    K1324BuildingScenario,
+    KechuangBuildingScenario,
     collect_event_graph,
     local_timestamp,
 )
-from fairy.scenarios.building_k1324.meeting_lifecycle import (
+from fairy.scenarios.building_kechuang.meeting_lifecycle import (
     MeetingPhase,
     event_types_in_order,
     install_normal_lifecycle,
@@ -42,8 +42,8 @@ MEETING_ID = "conference-standard-001"
 RESERVATION_ID = "conference-standard-reservation-001"
 
 
-@register_scenario("scenario_building_k1324_conference_standard")
-class ScenarioBuildingK1324ConferenceStandard(K1324BuildingScenario):
+@register_scenario("scenario_building_kechuang_k1315_conference_standard")
+class ScenarioBuildingKechuangK1315ConferenceStandard(KechuangBuildingScenario):
     """Prepare, host and close a scheduled K1315 conference without exceptions."""
 
     start_time: float | None = local_timestamp(2026, 9, 10, 9)

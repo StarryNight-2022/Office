@@ -26,7 +26,7 @@ def test_building_controller_uses_domain_prompt_and_is_discoverable() -> None:
 def test_prompt_selection_uses_scenario_domain_without_mislabeling_default() -> None:
     assert (
         get_system_prompt_for_run(
-            "default", "scenario_building_k1324_conference_standard"
+            "default", "scenario_building_kechuang_k1315_conference_standard"
         )
         == BUILDING_WORLD_FUNCTION_CALL_SYSTEM_PROMPT
     )

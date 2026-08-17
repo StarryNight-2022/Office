@@ -11,8 +11,8 @@ from fairy.apps.building_world import (
 )
 from fairy.apps.building_world.datetime_utils import parse_datetime
 from fairy.apps.building_world.types import MeetingStatus, ScheduleEntry
-from fairy.scenarios.building_k1324.base import (
-    K1324BuildingScenario,
+from fairy.scenarios.building_kechuang.base import (
+    KechuangBuildingScenario,
     collect_event_graph,
     local_timestamp,
 )
@@ -24,8 +24,8 @@ START_AT = "2026-09-10T14:00:00+08:00"
 END_AT = "2026-09-10T15:00:00+08:00"
 
 
-@register_scenario("scenario_building_k1324_meeting_booking")
-class ScenarioBuildingK1324MeetingBooking(K1324BuildingScenario):
+@register_scenario("scenario_building_kechuang_room_booking")
+class ScenarioBuildingKechuangRoomBooking(KechuangBuildingScenario):
     """Book a professor consultation after discovering K1315 is occupied."""
 
     # Scenario's dataclass-default migration reads concrete-class attributes,

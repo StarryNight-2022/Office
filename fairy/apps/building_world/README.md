@@ -58,7 +58,7 @@ Conference 长时自适应控制循环。
 
 ### 2.1 Scenario 层
 
-目录：`fairy/scenarios/building_k1324/`
+目录：`fairy/scenarios/building_kechuang/`
 
 Scenario 只负责：
 
@@ -190,7 +190,7 @@ K1315 的 20 人容量、K1316 的 8 人容量和面积参数是当前仿真初�
 
 ## 4. 会议预约完整工作流
 
-入口类：`ScenarioBuildingK1324MeetingBooking`
+入口类：`ScenarioBuildingKechuangRoomBooking`
 
 ```text
 Engine.run_scenario_agent / replay_workflow
@@ -230,20 +230,20 @@ Scenario.validate()
 
 ```python
 from fairy.controllers.engine import Engine
-from fairy.scenarios.building_k1324.scenario_meeting_booking import (
-    ScenarioBuildingK1324MeetingBooking,
+from fairy.scenarios.building_kechuang.scenario_room_booking import (
+    ScenarioBuildingKechuangRoomBooking,
 )
 
-oracle_engine = Engine(None, ScenarioBuildingK1324MeetingBooking())
+oracle_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
 oracle = oracle_engine.build_oracle_workflow(run_oracle=False)
 
-replay_engine = Engine(None, ScenarioBuildingK1324MeetingBooking())
+replay_engine = Engine(None, ScenarioBuildingKechuangRoomBooking())
 replayed = replay_engine.replay_workflow(oracle)
 report = replay_engine.evaluation_report(replayed)
 ```
 
-场景 ID：`scenario_building_k1324_meeting_booking`。Registry 会扫描
-`fairy.scenarios.building_k1324`。
+场景 ID：`scenario_building_kechuang_room_booking`。Registry 会扫描
+`fairy.scenarios.building_kechuang` 及其房间子包。
 
 ## 5. 模拟环境与传感器工作流
 
@@ -366,7 +366,7 @@ BuildingWorldRuntime.snapshot()
 
 ### 8.6 新增 Scenario
 
-1. 继承 `K1324BuildingScenario`；
+1. 继承 `KechuangBuildingScenario`；
 2. `initiate_scenario()` 只设置差异化初始状态；
 3. 定义 `scenario_input`；
 4. 用 `build_events_flow()` 和 `EventRegisterer.capture_mode()` 定义 Oracle 事件图；

@@ -15,8 +15,8 @@ from fairy.apps.building_world.runtime import (
 from fairy.apps.system import SystemApp
 from fairy.controllers.engine import Engine
 from fairy.physics.building import OutdoorConditions
-from fairy.scenarios.building_k1324.scenario_conference_standard import (
-    ScenarioBuildingK1324ConferenceStandard,
+from fairy.scenarios.building_kechuang.k1315.scenario_conference_standard import (
+    ScenarioBuildingKechuangK1315ConferenceStandard,
 )
 
 CONFIG_PATH = Path(__file__).parents[1] / "fairy" / "configs" / "rooms" / "k1315.yaml"
@@ -58,7 +58,7 @@ def test_ventilation_reduces_occupied_room_co2_and_consumes_energy() -> None:
 
 
 def test_meeting_tools_track_settings_print_completion_and_cleanup() -> None:
-    scenario = ScenarioBuildingK1324ConferenceStandard()
+    scenario = ScenarioBuildingKechuangK1315ConferenceStandard()
     Engine(None, scenario).build_oracle_workflow(run_oracle=False)
     lighting = scenario.get_typed_app(LightingApp)
     equipment = scenario.get_typed_app(MeetingEquipmentApp)
