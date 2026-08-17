@@ -150,8 +150,9 @@ topic / point address / raw payload
         -> SensorReading
 ```
 
-`MqttSensorAdapter` 不负责建立网络连接。paho-mqtt 或其他部署客户端负责认证、
-订阅、重连，并在回调中调用 `adapter.on_message(...)`。
+`MqttSensorAdapter` 不负责建立网络连接。仓库中的 `MqttSensorSubscriber` 基于
+paho-mqtt 负责认证、订阅和重连，并在回调中调用 `adapter.on_message(...)`；
+`fairy.simulators.building` 可用当前物理 Runtime 生成数据并通过 Broker 做闭环联调。
 
 ## 3. 状态所有权
 

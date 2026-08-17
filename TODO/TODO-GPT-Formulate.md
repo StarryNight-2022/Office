@@ -2,6 +2,35 @@
 
 > 基于 FAIRY 现有 `Agent → Controller → App → Physics → Scenario → Evaluation` 框架，构建面向 K13 层智慧办公场景的事件驱动 Smart-Building ARE。
 
+## 当前实施状态（2026-08-17）
+
+> 下方原始清单保留了早期设计过程，部分 `[ ]` 已经被后续重构实现，不能再单独
+> 作为代码现状判断依据。本节是当前阶段的实施基线。
+
+已经完成：
+
+- K1324、K1316、K1315 的声明式房间配置、统一加载和共享 Runtime；
+- 房间、功能区、人员、日程、资源、设备和统一 `BuildingEvent` 状态模型；
+- HVAC、加湿器、净化器、通风、灯光、投影、音响、麦克风和打印工具；
+- 温度、湿度、CO₂、PM2.5、设备/人员热负荷、能耗和舒适度降阶物理模型；
+- 带噪声、偏差、延迟、缺失和质量码的 Observation Model；
+- 分钟级物理推进、Event Queue、Trigger Policy、snapshot/restore 和 trace；
+- Building 专用 system prompt 与 `building_baseline_react`；
+- `fairy/scenarios/building_kechuang/` 下四个可运行、可回放、可验证场景；
+- MQTT Publisher、Subscriber、Adapter、SensorHub 和物理传感器模拟器；
+- Building 与 FAIRY 迁移回归测试。
+
+当前优先事项：
+
+1. 使用真实 MQTT Broker 验收发布、订阅、重连和 SensorHub 优先级；
+2. 实现 MQTT/内部模拟观测的 Shadow Mode 误差记录；
+3. 实现 K1316 小型研讨完整生命周期场景；
+4. 建立跨场景 Building 实验指标并运行真实模型批量实验；
+5. 实测三个房间的面积、设备参数和传感器位置后进行物理标定。
+
+当前明确延后：设备/传感器异常事件、复杂门禁、楼层可视化、多模态新房间生成和
+BACnet/Modbus 接入。
+
 ## 0. 项目目标与边界
 
 - 复用 FAIRY 的 CLI、LLM 接口、ReAct/function-calling、Tool Builder、工作流记录、Oracle、Replay 和评估框架。
