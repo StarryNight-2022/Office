@@ -17,8 +17,8 @@ from fairy.apps.farm_world.farm_world_app import (
     plants_per_ridge_from_spacing,
 )
 from fairy.apps.system import SystemApp
-from fairy.physics.canopy_biomass_engine import SeedType as CanopySeedType
-from fairy.physics.phenology_engine import SeedType as PhenologySeedType
+from fairy.physics.farm.canopy_biomass_engine import SeedType as CanopySeedType
+from fairy.physics.farm.phenology_engine import SeedType as PhenologySeedType
 from fairy.scenarios.farm_world_fullseason.scenario_tangyan5_base_full_season import (
     MANAGEMENT_PATH_EXPERT_BASELINE,
     WEATHER_SOURCE_ACTUAL,

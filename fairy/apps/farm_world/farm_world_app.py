@@ -764,7 +764,7 @@ class FarmWorldApp(App):
         # WeatherGenerator + biotic-outbreak schedule into the physics state.
         # Round-3 episodes pass freeform names that don't match the registry —
         # those proceed with the static weather.set_weather pattern.
-        from fairy.physics.profiles import get_profile
+        from fairy.physics.farm.profiles import get_profile
 
         registered = get_profile(profile_name)
         if registered is not None:
@@ -796,7 +796,7 @@ class FarmWorldApp(App):
         """Apply scenario-local canopy growth overrides for named seed types."""
         from dataclasses import replace
 
-        from fairy.physics.canopy_biomass_engine import (
+        from fairy.physics.farm.canopy_biomass_engine import (
             SeedType as CanopySeedType,
         )
 

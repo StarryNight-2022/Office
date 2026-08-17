@@ -27,8 +27,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Iterable
 
-from fairy.physics.biotic_pressure_engine import TreatmentType
-from fairy.physics.weather_engine import (
+from fairy.physics.farm.biotic_pressure_engine import TreatmentType
+from fairy.physics.farm.weather_engine import (
     MonthlyClimate,
     WeatherEvent,
     WeatherGeneratorConfig,

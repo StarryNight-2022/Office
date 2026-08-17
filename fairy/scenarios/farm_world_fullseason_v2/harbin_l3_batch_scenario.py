@@ -15,7 +15,7 @@ from fairy.apps.farm_world import (
     WeatherApp,
 )
 from fairy.apps.system import SystemApp
-from fairy.physics.soil_engine import SoilHydraulicModifier
+from fairy.physics.farm.soil_engine import SoilHydraulicModifier
 from fairy.scenarios.scenario import Scenario
 from fairy.scenarios.farm_world_fullseason_v2.harbin_l3_context_briefings import (
     build_l3_context_briefing,

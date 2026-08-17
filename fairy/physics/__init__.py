@@ -1,178 +1,85 @@
-"""
-Farm-ARE physics engines.
+"""Physics namespace shared by independent domain packages.
 
-Public interface for the seven daily-update engines plus the observation model
-described in are/simulation/scenarios/scenario_farm_world_physics/physics_action_tick_integration_guide.md.
-
-Each engine is independently constructable and exposes update_day(...). The
-orchestrator under are/simulation/apps/farm_world/physics_orchestrator.py is the
-single integration site that wires their outputs together.
-
-Several engines re-declare lookalike GrowthStage/SeedType enums to remain
-standalone. The canonical values are SoybeanStage and SeedType from the
-phenology engine; the duplicated enums in other modules carry the same string
-values and are interchangeable at the value level. This package re-exports only
-the canonical names to avoid ambiguity at the call site.
+The root package intentionally imports no domain implementation.  Legacy Farm
+symbols remain available lazily so existing scenarios keep working without
+making ``fairy.physics.building`` import Farm dependencies such as NumPy.
 """
 
-from fairy.physics.biotic_pressure_engine import (
-    BioticCropInput,
-    BioticPressureDayResult,
-    BioticPressureEngine,
-    BioticPressureParameters,
-    BioticPressureState,
-    BioticSoilInput,
-    BioticWeatherInput,
-    SeedBioticResistanceParameters,
-    TreatmentApplication,
-    TreatmentType,
-)
-from fairy.physics.canopy_biomass_engine import (
-    CanopyBiomassDayResult,
-    CanopyBiomassGrowthEngine,
-    CanopyBiomassParameters,
-    CanopyBiomassState,
-    GrowthSoilInput,
-    GrowthWeatherInput,
-    ManagementStressInput,
-    SeedGrowthParameters,
-)
-from fairy.physics.canopy_biomass_engine import (
-    PhenologyInput as CanopyPhenologyInput,
-)
-from fairy.physics.management_effect_engine import (
-    ManagementAction,
-    ManagementActionType,
-    ManagementCropInput,
-    ManagementEffectDayResult,
-    ManagementEffectEngine,
-    ManagementEffectParameters,
-    ManagementEffectState,
-    ManagementSoilInput,
-    ManagementWeatherInput,
-)
-from fairy.physics.observation_model import (
-    HiddenRidgeTruth,
-    ObservationModality,
-    ObservationModel,
-    ObservationModelParameters,
-    ObservationProduct,
-    ObservationProductType,
-    SensorAsset,
-)
-from fairy.physics.phenology_engine import (
-    PhenologyDayResult,
-    PhenologyParameters,
-    PhenologySoilInput,
-    PhenologyState,
-    PhenologyWeatherInput,
-    PlantingConfig,
-    SeedType,
-    SeedTypeParameters,
-    SoybeanStage,
-    ThermalTimePhenologyEngine,
-)
-from fairy.physics.soil_engine import (
-    RidgeSoilState,
-    SoilDayResult,
-    SoilEngine,
-    SoilHydraulicModifier,
-    SoilParameters,
-)
-from fairy.physics.soil_engine import (
-    WeatherInput as SoilWeatherInput,
-)
-from fairy.physics.weather_engine import (
-    MonthlyClimate,
-    WeatherDay,
-    WeatherEvent,
-    WeatherGenerator,
-    WeatherGeneratorConfig,
-)
-from fairy.physics.yield_recovery_engine import (
-    HarvestAction,
-    YieldGrowthInput,
-    YieldPhenologyInput,
-    YieldRecoveryDayResult,
-    YieldRecoveryEngine,
-    YieldRecoveryParameters,
-    YieldRecoveryState,
-    YieldStressInput,
-    YieldWeatherInput,
-)
+from __future__ import annotations
 
-__all__ = [
-    # Weather
-    "MonthlyClimate",
-    "WeatherDay",
-    "WeatherEvent",
-    "WeatherGenerator",
-    "WeatherGeneratorConfig",
-    # Soil
-    "RidgeSoilState",
-    "SoilDayResult",
-    "SoilEngine",
-    "SoilHydraulicModifier",
-    "SoilParameters",
-    "SoilWeatherInput",
-    # Phenology (canonical SoybeanStage + SeedType)
-    "PhenologyDayResult",
-    "PhenologyParameters",
-    "PhenologySoilInput",
-    "PhenologyState",
-    "PhenologyWeatherInput",
-    "PlantingConfig",
-    "SeedType",
-    "SeedTypeParameters",
-    "SoybeanStage",
+from importlib import import_module
+from typing import Any
+
+
+_FARM_EXPORT_MODULES: dict[str, str] = {}
+
+
+def _exports(module: str, names: str) -> None:
+    for name in names.split():
+        _FARM_EXPORT_MODULES[name] = module
+
+
+_exports(
+    "fairy.physics.farm.weather_engine",
+    "MonthlyClimate WeatherDay WeatherEvent WeatherGenerator WeatherGeneratorConfig",
+)
+_exports(
+    "fairy.physics.farm.soil_engine",
+    "RidgeSoilState SoilDayResult SoilEngine SoilHydraulicModifier SoilParameters",
+)
+_FARM_EXPORT_MODULES["SoilWeatherInput"] = "fairy.physics.farm.soil_engine"
+_exports(
+    "fairy.physics.farm.phenology_engine",
+    "PhenologyDayResult PhenologyParameters PhenologySoilInput PhenologyState "
+    "PhenologyWeatherInput PlantingConfig SeedType SeedTypeParameters SoybeanStage "
     "ThermalTimePhenologyEngine",
-    # Canopy / biomass
-    "CanopyBiomassDayResult",
-    "CanopyBiomassGrowthEngine",
-    "CanopyBiomassParameters",
-    "CanopyBiomassState",
-    "CanopyPhenologyInput",
-    "GrowthSoilInput",
-    "GrowthWeatherInput",
-    "ManagementStressInput",
+)
+_exports(
+    "fairy.physics.farm.canopy_biomass_engine",
+    "CanopyBiomassDayResult CanopyBiomassGrowthEngine CanopyBiomassParameters "
+    "CanopyBiomassState GrowthSoilInput GrowthWeatherInput ManagementStressInput "
     "SeedGrowthParameters",
-    # Biotic pressure
-    "BioticCropInput",
-    "BioticPressureDayResult",
-    "BioticPressureEngine",
-    "BioticPressureParameters",
-    "BioticPressureState",
-    "BioticSoilInput",
-    "BioticWeatherInput",
-    "SeedBioticResistanceParameters",
-    "TreatmentApplication",
-    "TreatmentType",
-    # Management effect
-    "ManagementAction",
-    "ManagementActionType",
-    "ManagementCropInput",
-    "ManagementEffectDayResult",
-    "ManagementEffectEngine",
-    "ManagementEffectParameters",
-    "ManagementEffectState",
-    "ManagementSoilInput",
-    "ManagementWeatherInput",
-    # Yield recovery
-    "HarvestAction",
-    "YieldGrowthInput",
-    "YieldPhenologyInput",
-    "YieldRecoveryDayResult",
-    "YieldRecoveryEngine",
-    "YieldRecoveryParameters",
-    "YieldRecoveryState",
-    "YieldStressInput",
+)
+_FARM_EXPORT_MODULES["CanopyPhenologyInput"] = (
+    "fairy.physics.farm.canopy_biomass_engine"
+)
+_exports(
+    "fairy.physics.farm.biotic_pressure_engine",
+    "BioticCropInput BioticPressureDayResult BioticPressureEngine "
+    "BioticPressureParameters BioticPressureState BioticSoilInput BioticWeatherInput "
+    "SeedBioticResistanceParameters TreatmentApplication TreatmentType",
+)
+_exports(
+    "fairy.physics.farm.management_effect_engine",
+    "ManagementAction ManagementActionType ManagementCropInput ManagementEffectDayResult "
+    "ManagementEffectEngine ManagementEffectParameters ManagementEffectState "
+    "ManagementSoilInput ManagementWeatherInput",
+)
+_exports(
+    "fairy.physics.farm.yield_recovery_engine",
+    "HarvestAction YieldGrowthInput YieldPhenologyInput YieldRecoveryDayResult "
+    "YieldRecoveryEngine YieldRecoveryParameters YieldRecoveryState YieldStressInput "
     "YieldWeatherInput",
-    # Observation model
-    "HiddenRidgeTruth",
-    "ObservationModality",
-    "ObservationModel",
-    "ObservationModelParameters",
-    "ObservationProduct",
-    "ObservationProductType",
-    "SensorAsset",
-]
+)
+_exports(
+    "fairy.physics.farm.observation_model",
+    "HiddenRidgeTruth ObservationModality ObservationModel ObservationModelParameters "
+    "ObservationProduct ObservationProductType SensorAsset",
+)
+
+__all__ = sorted(_FARM_EXPORT_MODULES)
+
+
+def __getattr__(name: str) -> Any:
+    module_name = _FARM_EXPORT_MODULES.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = import_module(module_name)
+    # Two historical aliases use a different class name in their source file.
+    source_name = {
+        "SoilWeatherInput": "WeatherInput",
+        "CanopyPhenologyInput": "PhenologyInput",
+    }.get(name, name)
+    value = getattr(module, source_name)
+    globals()[name] = value
+    return value

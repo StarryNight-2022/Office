@@ -21,7 +21,7 @@ from fairy.apps.farm_world.farm_world_app import (
 from fairy.apps.farm_world.physics_orchestrator import _generate_weather_day
 from fairy.apps.system import SystemApp
 from fairy.physics import WeatherGenerator
-from fairy.physics.weather_engine import default_harbin_soybean_config
+from fairy.physics.farm.weather_engine import default_harbin_soybean_config
 from fairy.scenarios.scenario import Scenario
 from fairy.scenarios.registry import register_scenario
 from fairy.time_manager import TimeManager

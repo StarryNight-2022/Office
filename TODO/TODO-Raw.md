@@ -31,3 +31,4 @@ Treat this as ABSOLUTE priority; we must have the world model for our K1324 and 
 
 Here's the example: we have the digital twin for K1315, we take photos from K1316, and a multimodal LLM takes the code describing K1315 and generates the new one for K1316!
 -------------------------
+I like this visualization, we'll have it for our MobiCom paper for the K13th floor floorplan "World Model"  @欧阳琨 add to the TODOs.md

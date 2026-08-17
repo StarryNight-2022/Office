@@ -52,19 +52,19 @@ from fairy.physics import (
     YieldStressInput,
     YieldWeatherInput,
 )
-from fairy.physics.biotic_pressure_engine import (
+from fairy.physics.farm.biotic_pressure_engine import (
     GrowthStage as BioticGrowthStage,
 )
-from fairy.physics.canopy_biomass_engine import (
+from fairy.physics.farm.canopy_biomass_engine import (
     GrowthStage as CanopyGrowthStage,
 )
-from fairy.physics.canopy_biomass_engine import (
+from fairy.physics.farm.canopy_biomass_engine import (
     SeedType as CanopySeedType,
 )
-from fairy.physics.management_effect_engine import (
+from fairy.physics.farm.management_effect_engine import (
     GrowthStage as ManagementGrowthStage,
 )
-from fairy.physics.yield_recovery_engine import (
+from fairy.physics.farm.yield_recovery_engine import (
     GrowthStage as YieldGrowthStage,
 )
 
@@ -984,7 +984,7 @@ def _apply_biotic_outbreaks_for_day(physics: "FarmPhysicsState", day: date) -> N
     days_since_start = (day - start_date).days
     if days_since_start < 0:
         return
-    from fairy.physics.biotic_pressure_engine import TreatmentType
+    from fairy.physics.farm.biotic_pressure_engine import TreatmentType
 
     for outbreak in outbreaks:
         if not (

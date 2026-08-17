@@ -1761,10 +1761,10 @@ class TractorApp(App):
             YieldPhenologyInput,
             YieldStressInput,
         )
-        from fairy.physics.yield_recovery_engine import (
+        from fairy.physics.farm.yield_recovery_engine import (
             GrowthStage as YieldGrowthStage,
         )
-        from fairy.physics.yield_recovery_engine import (
+        from fairy.physics.farm.yield_recovery_engine import (
             YieldRecoveryState,
         )
 

@@ -29,8 +29,8 @@ from fairy.apps.farm_world.farm_world_app import (
 )
 from fairy.apps.system import SystemApp
 from fairy.physics import WeatherGenerator
-from fairy.physics.weather_engine import default_harbin_soybean_config
-from fairy.physics.weather_engine import WeatherDay
+from fairy.physics.farm.weather_engine import default_harbin_soybean_config
+from fairy.physics.farm.weather_engine import WeatherDay
 from fairy.scenarios.farm_world_fullseason.tangyan5_base_data import (
     TANGYAN5_BASE_PLOTS,
     TANGYAN5_BASE_WEATHER,
@@ -1613,7 +1613,7 @@ class ScenarioTangyan5BaseFullSeason(Scenario):
 
     def _fit_observed_harvest_state(self) -> None:
         from fairy.physics import SoybeanStage
-        from fairy.physics.yield_recovery_engine import GrowthStage as YieldStage
+        from fairy.physics.farm.yield_recovery_engine import GrowthStage as YieldStage
 
         trial: Tangyan5Trial = self.trial  # type: ignore[attr-defined]
         plot = trial.plot

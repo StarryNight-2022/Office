@@ -16,20 +16,20 @@ from typing import Any, Mapping
 from fairy.apps.farm_world.farm_action_record import FarmActionRecord
 from fairy.apps.farm_world.farm_world_app import FarmWorldApp
 from fairy.apps.farm_world.weather_app import WeatherApp
-from fairy.physics.biotic_pressure_engine import BioticPressureState
-from fairy.physics.canopy_biomass_engine import (
+from fairy.physics.farm.biotic_pressure_engine import BioticPressureState
+from fairy.physics.farm.canopy_biomass_engine import (
     CanopyBiomassState,
     SeedType as CanopySeedType,
 )
-from fairy.physics.management_effect_engine import ManagementEffectState
-from fairy.physics.phenology_engine import (
+from fairy.physics.farm.management_effect_engine import ManagementEffectState
+from fairy.physics.farm.phenology_engine import (
     PhenologyState,
     SeedType as PhenologySeedType,
     SoybeanStage,
 )
-from fairy.physics.soil_engine import RidgeSoilState, SoilHydraulicModifier
-from fairy.physics.weather_engine import WeatherDay
-from fairy.physics.yield_recovery_engine import YieldRecoveryState
+from fairy.physics.farm.soil_engine import RidgeSoilState, SoilHydraulicModifier
+from fairy.physics.farm.weather_engine import WeatherDay
+from fairy.physics.farm.yield_recovery_engine import YieldRecoveryState
 
 
 def export_farm_checkpoint_state(

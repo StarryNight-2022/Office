@@ -36,7 +36,7 @@ from fairy.physics import (
     WeatherGenerator,
     YieldRecoveryEngine,
 )
-from fairy.physics.weather_engine import default_harbin_soybean_config
+from fairy.physics.farm.weather_engine import default_harbin_soybean_config
 
 # Default fixed soil/canopy sensor placement matches the existing SensorApp
 # zone layout (S1..S6 / C1..C6 installed at ridges 5, 15, 25, 38, 48, 58).
