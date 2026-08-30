@@ -227,7 +227,30 @@ class BuildingWorldRuntime:
         if handler not in handlers:
             handlers.append(handler)
 
-    def advance_to(self, target_time: datetime) -> RuntimeAdvanceResult:
+    def initialize_observations(self) -> int:
+        """Publish a time-zero sensor sample after scenario truth is configured."""
+
+        observations = self.physics.sample_observations(self.current_time)
+        self.trace.append(
+            {
+                "kind": "initial_observation",
+                "at_time": self.current_time.isoformat(),
+                "observation_count": len(observations),
+            }
+        )
+        if observations:
+            self.world.publish_building_event(
+                BuildingEventType.SENSOR_UPDATED,
+                source=self.__class__.__name__,
+                subject_id="building-sensors",
+                occurred_at=self.current_time,
+                payload={"sample_count": len(observations), "initial": True},
+            )
+        return len(observations)
+
+    def advance_to(
+        self, target_time: datetime, *, stop_on_wakeup: bool = False
+    ) -> RuntimeAdvanceResult:
         if target_time.tzinfo is None:
             raise ValueError("target_time must be timezone-aware")
         if target_time <= self.current_time:
@@ -244,6 +267,11 @@ class BuildingWorldRuntime:
             events, decisions = self._classify_new_world_events()
             processed_events.extend(events)
             trigger_decisions.extend(decisions)
+            # Interactive Agent calls stop at the first plan-invalidating
+            # event. Oracle/replay callers retain full deterministic advances
+            # by leaving ``stop_on_wakeup`` disabled.
+            if stop_on_wakeup and any(item.should_wake_agent for item in decisions):
+                break
             if self.current_time >= target_time:
                 break
             remaining = (target_time - self.current_time).total_seconds()

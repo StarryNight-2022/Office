@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -25,7 +25,10 @@ class AirDeviceApp(App):
     @app_tool()
     @event_registered(operation_type=OperationType.WRITE)
     def set_humidifier(
-        self, device_id: str, power_on: bool, level: int
+        self,
+        device_id: str,
+        power_on: bool,
+        level: Annotated[int, {"minimum": 0, "maximum": 3}],
     ) -> dict[str, Any]:
         result = self._set_level_device(
             device_id, DeviceType.HUMIDIFIER, power_on, level
@@ -41,7 +44,10 @@ class AirDeviceApp(App):
     @app_tool()
     @event_registered(operation_type=OperationType.WRITE)
     def set_air_purifier(
-        self, device_id: str, power_on: bool, level: int
+        self,
+        device_id: str,
+        power_on: bool,
+        level: Annotated[int, {"minimum": 0, "maximum": 3}],
     ) -> dict[str, Any]:
         result = self._set_level_device(
             device_id, DeviceType.AIR_PURIFIER, power_on, level

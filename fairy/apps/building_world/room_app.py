@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -28,8 +28,8 @@ class RoomApp(App):
     @event_registered(operation_type=OperationType.READ)
     def find_available_rooms(
         self,
-        start_at: str,
-        end_at: str,
+        start_at: Annotated[str, {"format": "date-time"}],
+        end_at: Annotated[str, {"format": "date-time"}],
         min_capacity: int,
         required_capabilities: list[str],
     ) -> dict[str, Any]:

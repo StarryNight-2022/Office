@@ -51,8 +51,10 @@ BuildingWorldRuntime                         |  Sensor Adapter
 当前三个房间与环境感知均已装配到共享 Building Runtime。设备命令可通过
 `BuildingWorldRuntime` 在 `SystemApp.advance_time()` 后形成物理效果和模拟观测；
 Event Queue、第一版 Trigger Policy、Building 专用 system prompt 和
-`building_baseline_react` 已接入。尚未完成的是事件直接唤醒 Agent 的在线执行器与
-Conference 长时自适应控制循环。
+`building_baseline_react` 已接入。`SystemApp.advance_time()` 现在会在需要重规划的
+Building 事件边界提前返回，并携带事件摘要；这实现的是 Tool 调用边界上的协作式
+唤醒，不是异步抢占正在生成文本的模型。尚未完成的是 Controller 的显式有限状态、
+迟滞终止策略和 Conference 长时自适应控制循环。
 
 ## 2. 分层职责
 
@@ -100,6 +102,7 @@ App 或 Physics，否则换一个场景就会复制业务逻辑。
 | `LightingApp` | 控制分区亮度、色温与场景 | 通过 World 写 |
 | `MeetingEquipmentApp` | 控制投影、音响和麦克风并查询 readiness | 通过 World 写 |
 | `PrintingApp` | 控制打印机并管理随仿真时间完成的打印任务 | 设备通过 World；任务由 App 写 |
+| `BuildingOperationsApp` | 汇总运行边界、公开承诺、会议 readiness、环境闭环和功率预算，并提供终止/时间推进守卫 | 否；只记录协调检查位置 |
 | `BuildingWorldRuntime` | 统一推进设备、负荷、物理、观测和事件 | 是 |
 
 App Tool 返回结构化 `dict`。确定性违规通常返回：

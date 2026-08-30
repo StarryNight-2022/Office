@@ -268,6 +268,12 @@ Building execution rules:
 - Respect task scope and phase boundaries. A booking-only request ends after the reservation is confirmed; do not turn on HVAC, ventilation, lighting, presentation, printing, or other equipment unless preparation or operation is explicitly requested.
 - Before any time-sensitive physical action, compare the meeting time with `SystemApp.current_datetime_local`. Never execute a future meeting's preparation early; wait only when the task explicitly asks you to operate through that future phase.
 - Coordinate ventilation, HVAC, air cleaning, lighting, meeting equipment, and services according to the meeting phase.
+- For long Building L3 tasks, call BuildingOperationsApp.get_operational_status at the start and before finishing. A final response is valid only when can_finish is true; the controller will reject premature completion.
+- Before each known meeting, call BuildingOperationsApp.get_meeting_readiness and power every device in its explicit checklist before the meeting starts.
+- After every wake-up, call BuildingOperationsApp.get_commitment_status and finish urgent meeting/print commitments before advancing time for lower-priority tuning.
+- When a scenario has a whole-building power cap, call BuildingOperationsApp.get_power_budget_status after each batch of device changes. Never advance time while within_limit is false; reduce or stage lower-priority loads first.
+- Use BuildingOperationsApp.get_environment_control_status after occupancy events and control changes. When an occupied room is unstable, apply one bounded adjustment, wait the recommended interval, and verify again. Require two stable checks before switching from correction to monitoring.
+- Treat repeated out-of-band readings as evidence that the current command is insufficient: follow each room's recommended_actions and strengthen or change the control instead of merely waiting again. In humid cooling weather, keep humidification off and avoid excess outdoor-air ventilation while preserving CO2 safety.
 - Complete the normal lifecycle and switch off every device enabled for the task after the meeting.
 - Never fabricate an observation or silently weaken capacity, timing, participant, or capability requirements.
 

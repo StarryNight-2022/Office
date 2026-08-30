@@ -29,6 +29,8 @@ class BuildingEquipmentModel:
                 "heating_w": 0.0,
                 "cooling_w": 0.0,
                 "outdoor_airflow_m3_s": 0.0,
+                "sensible_recovered_airflow_m3_s": 0.0,
+                "latent_recovered_airflow_m3_s": 0.0,
                 "humidification_g_s": 0.0,
                 "clean_air_delivery_m3_s": 0.0,
                 "auxiliary_electric_power_w": 0.0,
@@ -57,10 +59,10 @@ class BuildingEquipmentModel:
                     row["cooling_w"] = float(row["cooling_w"]) + delivered
                 elif mode == HvacMode.HEATING:
                     row["heating_w"] = float(row["heating_w"]) + delivered
-                row["outdoor_airflow_m3_s"] = (
-                    float(row["outdoor_airflow_m3_s"])
-                    + _number(spec, "outdoor_airflow_m3_s", 0.0) * level_fraction
+                airflow = (
+                    _number(spec, "outdoor_airflow_m3_s", 0.0) * level_fraction
                 )
+                _add_outdoor_air(row, spec, airflow)
                 row["auxiliary_electric_power_w"] = (
                     float(row["auxiliary_electric_power_w"])
                     + _number(spec, "fan_power_w", spec.rated_power_w) * level_fraction
@@ -86,19 +88,33 @@ class BuildingEquipmentModel:
             elif spec.device_type == DeviceType.VENTILATION:
                 # Dedicated ventilation supplies outdoor air independently of
                 # HVAC thermal mode, allowing CO2 control to be tested directly.
-                row["outdoor_airflow_m3_s"] = (
-                    float(row["outdoor_airflow_m3_s"])
-                    + _number(spec, "outdoor_airflow_m3_s_max", 0.0) * level_fraction
+                airflow = (
+                    _number(spec, "outdoor_airflow_m3_s_max", 0.0) * level_fraction
                 )
+                _add_outdoor_air(row, spec, airflow)
                 row["auxiliary_electric_power_w"] = (
                     float(row["auxiliary_electric_power_w"])
                     + spec.rated_power_w * level_fraction
                 )
 
-        return {
-            zone_id: HvacCommand(**row)  # type: ignore[arg-type]
-            for zone_id, row in values.items()
-        }
+        commands = {}
+        for zone_id, row in values.items():
+            airflow = float(row.pop("outdoor_airflow_m3_s"))
+            sensible_recovered = float(
+                row.pop("sensible_recovered_airflow_m3_s")
+            )
+            latent_recovered = float(row.pop("latent_recovered_airflow_m3_s"))
+            commands[zone_id] = HvacCommand(
+                **row,  # type: ignore[arg-type]
+                outdoor_airflow_m3_s=airflow,
+                outdoor_air_sensible_recovery_fraction=(
+                    sensible_recovered / airflow if airflow > 0.0 else 0.0
+                ),
+                outdoor_air_latent_recovery_fraction=(
+                    latent_recovered / airflow if airflow > 0.0 else 0.0
+                ),
+            )
+        return commands
 
 
 def _number(spec: DeviceSpec, name: str, default: float) -> float:
@@ -109,3 +125,25 @@ def _number(spec: DeviceSpec, name: str, default: float) -> float:
         raise ValueError(
             f"device {spec.device_id!r} parameter {name!r} is invalid"
         ) from exc
+
+
+def _add_outdoor_air(
+    row: dict[str, float | HvacMode],
+    spec: DeviceSpec,
+    airflow_m3_s: float,
+) -> None:
+    """Accumulate airflow and its flow-weighted recovery effectiveness."""
+
+    sensible = _number(spec, "sensible_heat_recovery_fraction", 0.0)
+    latent = _number(spec, "latent_moisture_recovery_fraction", 0.0)
+    if not 0.0 <= sensible <= 1.0 or not 0.0 <= latent <= 1.0:
+        raise ValueError(f"device {spec.device_id!r} recovery fraction is invalid")
+    row["outdoor_airflow_m3_s"] = (
+        float(row["outdoor_airflow_m3_s"]) + airflow_m3_s
+    )
+    row["sensible_recovered_airflow_m3_s"] = (
+        float(row["sensible_recovered_airflow_m3_s"]) + airflow_m3_s * sensible
+    )
+    row["latent_recovered_airflow_m3_s"] = (
+        float(row["latent_recovered_airflow_m3_s"]) + airflow_m3_s * latent
+    )

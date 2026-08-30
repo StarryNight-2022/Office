@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.sensor_hub import SensorHub
@@ -63,7 +63,9 @@ class BuildingSensorApp(App):
     @app_tool()
     @data_tool()
     @event_registered(operation_type=OperationType.READ)
-    def get_sensor_health(self, stale_after_seconds: int = 300) -> dict[str, Any]:
+    def get_sensor_health(
+        self, stale_after_seconds: Annotated[int, {"minimum": 0}] = 300
+    ) -> dict[str, Any]:
         """Report quality and freshness without exposing hidden physics state."""
 
         if stale_after_seconds < 0:

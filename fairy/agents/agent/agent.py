@@ -8,6 +8,7 @@ from pathlib import Path
 from collections import deque, OrderedDict
 from datetime import datetime, timezone, timedelta
 from typing import Any
+from collections.abc import Callable, Mapping
 
 CST = timezone(timedelta(hours=8))
 
@@ -74,6 +75,11 @@ class Agent(BaseAgent):
         self.tool_call_count = 0
         self.llm_turn_count = 0
         self.stop_reason: str | None = None
+        # Domain controllers may reject a premature final response and return
+        # public blockers.  The callback is optional so legacy scenarios keep
+        # their historical termination semantics.
+        self.completion_guard: Callable[[], Mapping[str, Any]] | None = None
+        self.completion_guard_rejections = 0
         self.max_llm_call_retries = int(os.getenv("FAIRY_AGENT_LLM_CALL_RETRIES", "5"))
         self.llm_retry_sleep_seconds = float(os.getenv("FAIRY_AGENT_LLM_RETRY_SLEEP_S", "0"))
         self.rate_limit_retry_sleep_seconds = float(
@@ -355,6 +361,7 @@ class Agent(BaseAgent):
         self.run_started_at_wall = time.perf_counter()
         self.run_wall_timeout_seconds = timeout_seconds
         self.stop_reason = None
+        self.completion_guard_rejections = 0
         env_ts = self.env_time_str()
         self.record_event(
             "agent_run_start",
@@ -382,7 +389,36 @@ class Agent(BaseAgent):
                 )
                 self.llm_turn_count += 1
                 self.after_llm_message(message)
-                if not message.tool_calls:  # if finished handling tool calls, break
+                if not message.tool_calls:
+                    guard = self.completion_guard
+                    guard_result = guard() if guard is not None else None
+                    if isinstance(guard_result, Mapping) and not bool(
+                        guard_result.get("can_finish", True)
+                    ):
+                        self.completion_guard_rejections += 1
+                        blockers = list(guard_result.get("blockers", []))
+                        notice = (
+                            "Completion rejected by the Building operational guard. "
+                            "The task still has public blockers. Call "
+                            "BuildingOperationsApp__get_operational_status, resolve or "
+                            "wait through them, then attempt completion again. "
+                            f"Blockers: {json.dumps(blockers, ensure_ascii=False)}"
+                        )
+                        self.messages.system_notify(notice, time=self.env_time_str())
+                        self.workflow.add_node(
+                            WorkflowStep(
+                                op_type="system",
+                                content=notice,
+                                time=self.env_time_str(),
+                            )
+                        )
+                        self.record_event(
+                            "completion_guard_rejected",
+                            status="continue",
+                            rejection_count=self.completion_guard_rejections,
+                            blockers=blockers,
+                        )
+                        continue
                     self.stop_reason = "agent_finished"
                     break
 

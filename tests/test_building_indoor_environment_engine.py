@@ -17,7 +17,6 @@ from fairy.physics.building import (
     ZoneState,
 )
 
-
 NOW = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
 
@@ -100,6 +99,33 @@ def test_occupants_raise_co2_and_ventilation_reduces_it() -> None:
 
     assert unventilated.co2_ppm > 500.0
     assert ventilated.co2_ppm < unventilated.co2_ppm
+
+
+def test_heat_recovery_reduces_winter_ventilation_loss_without_hiding_co2() -> None:
+    params = _isolated_parameters()
+    outdoor = OutdoorConditions(air_temperature_c=-15.0, co2_ppm=420.0)
+    initial = ZoneState(zone_id="z1", air_temperature_c=22.0, co2_ppm=1000.0)
+
+    without_recovery = IndoorEnvironmentEngine({"z1": params}, {"z1": initial}).step(
+        NOW,
+        600.0,
+        outdoor,
+        hvac_by_zone={"z1": HvacCommand(outdoor_airflow_m3_s=0.2)},
+    )[0]
+    with_recovery = IndoorEnvironmentEngine({"z1": params}, {"z1": initial}).step(
+        NOW,
+        600.0,
+        outdoor,
+        hvac_by_zone={
+            "z1": HvacCommand(
+                outdoor_airflow_m3_s=0.2,
+                outdoor_air_sensible_recovery_fraction=0.8,
+            )
+        },
+    )[0]
+
+    assert with_recovery.air_temperature_c > without_recovery.air_temperature_c
+    assert with_recovery.co2_ppm == pytest.approx(without_recovery.co2_ppm)
 
 
 def test_air_cleaner_reduces_pm25() -> None:

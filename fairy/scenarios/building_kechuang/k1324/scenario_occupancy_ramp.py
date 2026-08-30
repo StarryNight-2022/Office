@@ -86,7 +86,10 @@ K1324 研究生办公室从 09:00 开始按计划变化人数：09:10 为 5 人�
             previous_minute = 0
             for minute, count in OCCUPANCY_TIMELINE:
                 wait = (
-                    system.advance_time(minutes=minute - previous_minute)
+                    system.advance_time(
+                        minutes=minute - previous_minute,
+                        stop_on_event=False,
+                    )
                     .oracle()
                     .with_id(f"wait_to_minute_{minute:02d}_occupancy_{count:02d}")
                     .depends_on(previous, delay_seconds=1)
@@ -105,7 +108,7 @@ K1324 研究生办公室从 09:00 开始按计划变化人数：09:10 为 5 人�
                 )
                 previous_minute = minute
             recover = (
-                system.advance_time(minutes=15)
+                system.advance_time(minutes=15, stop_on_event=False)
                 .oracle()
                 .with_id("wait_for_empty_room_recovery")
                 .depends_on(previous, delay_seconds=1)

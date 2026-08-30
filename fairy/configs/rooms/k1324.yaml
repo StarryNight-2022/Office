@@ -48,7 +48,7 @@
       "functional_area_id": "k1324_graduate_workstations",
       "capabilities": ["cooling", "heating", "fan"],
       "rated_power_w": 2200.0,
-      "parameters": {"thermal_capacity_w": 6000.0, "fan_power_w": 150.0, "outdoor_airflow_m3_s": 0.04}
+      "parameters": {"thermal_capacity_w": 6000.0, "fan_power_w": 150.0, "outdoor_airflow_m3_s": 0.04, "sensible_heat_recovery_fraction": 0.7, "latent_moisture_recovery_fraction": 0.3}
     },
     {
       "device_id": "k1324_humidifier_01",
@@ -75,7 +75,7 @@
       "functional_area_id": "k1324_graduate_workstations",
       "capabilities": ["outdoor_air", "co2_control"],
       "rated_power_w": 200.0,
-      "parameters": {"outdoor_airflow_m3_s_max": 0.4}
+      "parameters": {"outdoor_airflow_m3_s_max": 0.4, "sensible_heat_recovery_fraction": 0.8, "latent_moisture_recovery_fraction": 0.5}
     }
   ],
   "sensors": [

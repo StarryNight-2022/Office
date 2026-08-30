@@ -22,6 +22,13 @@ from fairy.physics.building.observation_model import (
 from fairy.physics.building.sensor_api import SensorPublisher
 
 
+# Public early-warning thresholds shared with the Agent-facing operating
+# contract. Scenario hard limits can be looser, but warnings still require
+# preventive control while a room is occupied.
+CO2_WARNING_THRESHOLD_PPM = 1000.0
+PM25_WARNING_THRESHOLD_UG_M3 = 35.0
+
+
 class PhysicsEventType(str, Enum):
     """Physics-originated transitions consumed by the future event runtime."""
 
@@ -124,6 +131,26 @@ class BuildingPhysicsOrchestrator:
             cumulative_energy_kwh_by_zone=dict(self.cumulative_energy_kwh_by_zone),
         )
 
+    def sample_observations(
+        self, at_time: datetime
+    ) -> tuple[ObservationSample, ...]:
+        """Sample the current truth without advancing physics or energy.
+
+        This bootstrap path makes sensors useful at scenario time zero while
+        preserving the invariant that only ``step`` evolves simulator truth.
+        """
+
+        if self.observation_model is None:
+            return ()
+        observations = tuple(
+            self.observation_model.sample(at_time, self.engine.get_state())
+        )
+        if self.observation_sink is not None:
+            self.observation_sink.publish_many(
+                sample.reading for sample in observations
+            )
+        return observations
+
     def snapshot(self) -> dict[str, object]:
         """Capture all mutable state needed for bit-for-bit continuation."""
 
@@ -175,7 +202,7 @@ class BuildingPhysicsOrchestrator:
         event_by_key: dict[tuple[str, str], PhysicsEvent] = {}
         for result in results:
             conditions: list[tuple[str, PhysicsEventType, float]] = []
-            if result.co2_ppm >= 1000.0:
+            if result.co2_ppm >= CO2_WARNING_THRESHOLD_PPM:
                 conditions.append(
                     (
                         "co2_high",
@@ -183,7 +210,7 @@ class BuildingPhysicsOrchestrator:
                         result.co2_ppm,
                     )
                 )
-            if result.pm25_ug_m3 >= 35.0:
+            if result.pm25_ug_m3 >= PM25_WARNING_THRESHOLD_UG_M3:
                 conditions.append(
                     (
                         "pm25_high",
@@ -207,7 +234,17 @@ class BuildingPhysicsOrchestrator:
                     occurred_at=at_time,
                     zone_id=result.zone_id,
                     condition=condition,
-                    payload={"value": value},
+                    payload={
+                        "value": value,
+                        "severity": "warning",
+                        "threshold": (
+                            CO2_WARNING_THRESHOLD_PPM
+                            if condition == "co2_high"
+                            else PM25_WARNING_THRESHOLD_UG_M3
+                            if condition == "pm25_high"
+                            else 0.7
+                        ),
+                    },
                 )
 
         # Set differences are the edges of the threshold state machine.  Sort

@@ -17,6 +17,10 @@ def build_building_metrics(runtime: BuildingWorldRuntime) -> dict[str, Any]:
     physics_steps = [
         item for item in runtime.trace if item.get("kind") == "physics_step"
     ]
+    building_power_w = [
+        sum(float(zone.get("electric_power_w", 0.0)) for zone in step.get("zones", []))
+        for step in physics_steps
+    ]
     zone_accumulators: dict[str, dict[str, float]] = defaultdict(
         lambda: {
             "simulated_seconds": 0.0,
@@ -88,12 +92,11 @@ def build_building_metrics(runtime: BuildingWorldRuntime) -> dict[str, Any]:
         ),
         "physics_step_count": len(physics_steps),
         "energy": {
-            "total_kwh": sum(
-                runtime.physics.cumulative_energy_kwh_by_zone.values()
-            ),
+            "total_kwh": sum(runtime.physics.cumulative_energy_kwh_by_zone.values()),
             "by_zone_kwh": dict(
                 sorted(runtime.physics.cumulative_energy_kwh_by_zone.items())
             ),
+            "peak_power_w": max(building_power_w, default=0.0),
         },
         "environment": {
             "by_zone": [
@@ -128,10 +131,7 @@ def build_building_metrics(runtime: BuildingWorldRuntime) -> dict[str, Any]:
                 else ()
             ),
             "device_types": sorted(
-                {
-                    device.device_type.value
-                    for device in runtime.world.devices.values()
-                }
+                {device.device_type.value for device in runtime.world.devices.values()}
             ),
         },
     }

@@ -25,6 +25,7 @@ from fairy.apps.building_world import (
 from fairy.apps.building_world.room_loader import load_room_configuration
 from fairy.apps.building_world.runtime import (
     BuildingWorldRuntime,
+    OutdoorProvider,
     constant_outdoor_provider,
     utc_datetime,
 )
@@ -69,6 +70,24 @@ class KechuangBuildingScenario(Scenario):
     start_time: float | None = local_timestamp(2026, 9, 9, 9)
     time_increment_in_seconds: int = 60
 
+    def outdoor_provider(self) -> OutdoorProvider:
+        """Return the weather source used by the shared building runtime.
+
+        Existing L1/L2 fixtures retain their deterministic constant weather.
+        Spec-driven L3 scenarios override this seam with a time-varying
+        profile, without duplicating room/App/runtime assembly.
+        """
+
+        return constant_outdoor_provider(
+            OutdoorConditions(
+                air_temperature_c=30.0,
+                relative_humidity_pct=65.0,
+                co2_ppm=420.0,
+                pm25_ug_m3=25.0,
+                solar_irradiance_w_m2=300.0,
+            )
+        )
+
     def initiate_scenario(self) -> None:
         if self.apps:
             return
@@ -85,17 +104,13 @@ class KechuangBuildingScenario(Scenario):
             configurations,
             world=world,
             start_at=utc_datetime(float(self.start_time or 0.0)),
-            outdoor_provider=constant_outdoor_provider(
-                OutdoorConditions(
-                    air_temperature_c=30.0,
-                    relative_humidity_pct=65.0,
-                    co2_ppm=420.0,
-                    pm25_ug_m3=25.0,
-                    solar_irradiance_w_m2=300.0,
-                )
-            ),
+            outdoor_provider=self.outdoor_provider(),
             observation_seed=self.seed,
         )
+        # Subclasses may replace YAML bootstrap truth (for example, seasonal
+        # L3 indoor conditions) before the first sensor sample is published.
+        self.configure_initial_runtime(runtime)
+        runtime.initialize_observations()
         room = RoomApp(world)
         allocation = ResourceAllocationApp(world, room)
         schedule = ScheduleApp(world, room, allocation)
@@ -106,11 +121,13 @@ class KechuangBuildingScenario(Scenario):
         ventilation = VentilationApp(world)
         lighting = LightingApp(world)
         meeting_equipment = MeetingEquipmentApp(world)
-        printing = PrintingApp(world)
+        printing = PrintingApp(world, runtime)
         sensors = BuildingSensorApp(runtime.sensors)
         system = SystemApp()
         system.register_time_advance_hook(
-            lambda _previous, current: runtime.advance_to(utc_datetime(current))
+            lambda _previous, current, stop_on_event: self._advance_runtime_for_agent(
+                runtime, current, stop_on_event
+            )
         )
         self.building_runtime = runtime
         self.apps = [
@@ -131,6 +148,50 @@ class KechuangBuildingScenario(Scenario):
             system,
         ]
         self._configure_people(world)
+
+    def configure_initial_runtime(self, runtime: BuildingWorldRuntime) -> None:
+        """Customization seam executed before initial observations exist."""
+
+    def _advance_runtime_for_agent(
+        self,
+        runtime: BuildingWorldRuntime,
+        requested_timestamp: float,
+        stop_on_event: bool,
+    ) -> dict[str, object]:
+        """Advance until the target or the first event requiring replanning."""
+
+        result = runtime.advance_to(
+            utc_datetime(requested_timestamp), stop_on_wakeup=stop_on_event
+        )
+        wake_event_ids = {
+            decision.event_id
+            for decision in result.trigger_decisions
+            if decision.should_wake_agent
+        }
+        wake_events = [
+            {
+                "event_id": event.event_id,
+                "event_type": event.event_type.value,
+                "subject_id": event.subject_id,
+                "occurred_at": event.occurred_at.isoformat(),
+                "payload": dict(event.payload),
+            }
+            for event in result.processed_events
+            if event.event_id in wake_event_ids
+        ]
+        response: dict[str, object] = {
+            "actual_timestamp": (
+                result.ended_at.timestamp()
+                if stop_on_event
+                else requested_timestamp
+            )
+        }
+        if wake_events:
+            response["interruption"] = {
+                "reason": "building_event_requires_reconciliation",
+                "events": wake_events,
+            }
+        return response
 
     def _configure_people(self, world: BuildingWorldApp) -> None:
         for person in (

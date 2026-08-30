@@ -8,6 +8,7 @@ from fairy.apps.building_world.lighting_app import LightingApp
 from fairy.apps.building_world.meeting_equipment_app import MeetingEquipmentApp
 from fairy.apps.building_world.metrics import build_building_metrics
 from fairy.apps.building_world.occupancy_app import OccupancyApp
+from fairy.apps.building_world.operations_app import BuildingOperationsApp
 from fairy.apps.building_world.printing_app import PrintingApp
 from fairy.apps.building_world.resource_allocation_app import ResourceAllocationApp
 from fairy.apps.building_world.room_app import RoomApp
@@ -53,6 +54,7 @@ __all__ = [
     "BuildingEventType",
     "BuildingRunMode",
     "BuildingSensorApp",
+    "BuildingOperationsApp",
     "BuildingWorldApp",
     "DeviceHealth",
     "DeviceRegistryApp",

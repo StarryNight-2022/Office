@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -28,9 +28,9 @@ class HvacApp(App):
         self,
         device_id: str,
         power_on: bool,
-        mode: str,
-        target_temperature_c: float,
-        fan_level: int,
+        mode: Literal["off", "cooling", "heating", "fan"],
+        target_temperature_c: Annotated[float, {"minimum": 16.0, "maximum": 30.0}],
+        fan_level: Annotated[int, {"minimum": 0, "maximum": 3}],
     ) -> dict[str, Any]:
         spec = self.world.devices.get(device_id)
         state = self.world.device_states.get(device_id)

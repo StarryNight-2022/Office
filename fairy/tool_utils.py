@@ -5,7 +5,16 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from types import UnionType
-from typing import Any, Callable, Literal, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Literal,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 
 class OperationType(Enum):
@@ -62,6 +71,9 @@ class AppTool:
                     "type": "object",
                     "properties": properties,
                     "required": required,
+                    # Reject invented arguments early at the model/tool
+                    # boundary instead of silently ignoring misspelled fields.
+                    "additionalProperties": False,
                 },
             },
         }
@@ -84,6 +96,15 @@ def _json_schema(type_obj: Any) -> dict[str, Any]:
 
     origin = get_origin(type_obj)
     args = get_args(type_obj)
+    if origin is Annotated:
+        base_type, *metadata = args
+        schema = _json_schema(base_type)
+        # A small JSON-Schema mapping inside ``Annotated`` lets domain Apps
+        # publish numeric bounds without coupling this generic module to them.
+        for item in metadata:
+            if isinstance(item, dict):
+                schema.update(item)
+        return schema
     if origin in {list, tuple, set, frozenset}:
         item_type = args[0] if args else str
         return {"type": "array", "items": _json_schema(item_type)}
@@ -148,7 +169,8 @@ def agent_tool(func: Callable[..., Any] | None = None, *, doc_enabled: bool = Tr
 
 def build_tool(instance: Any, func: Callable[..., Any], failure_probability=None) -> AppTool:
     sig = inspect.signature(func)
-    hints = get_type_hints(func)
+    # ``include_extras`` preserves Annotated range metadata for tool schemas.
+    hints = get_type_hints(func, include_extras=True)
     args: list[AppToolArg] = []
     for name, param in sig.parameters.items():
         if name == "self":

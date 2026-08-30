@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -37,10 +37,10 @@ class MeetingEquipmentApp(App):
         self,
         device_id: str,
         power_on: bool,
-        volume_pct: int,
+        volume_pct: Annotated[int, {"minimum": 0, "maximum": 100}],
         microphone_enabled: bool,
     ) -> dict[str, Any]:
-        if not 0 <= volume_pct <= 100:
+        if power_on and not 0 <= volume_pct <= 100:
             return _rejected("volume_out_of_range")
         return self._set_device(
             device_id,

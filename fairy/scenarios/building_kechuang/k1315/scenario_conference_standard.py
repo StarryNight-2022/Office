@@ -133,7 +133,7 @@ K1315 会议室将在今天 10:00 至 11:00 举行 12 人正式会议。请在 0
                 .depends_on(None, delay_seconds=1)
             )
             wait_for_preparation = (
-                system.advance_time(minutes=15)
+                system.advance_time(minutes=15, stop_on_event=False)
                 .oracle()
                 .with_id("wait_for_preparation")
                 .depends_on(briefing, delay_seconds=1)
@@ -205,7 +205,7 @@ K1315 会议室将在今天 10:00 至 11:00 举行 12 人正式会议。请在 0
                 .depends_on(start_projector, delay_seconds=1)
             )
             precondition = (
-                system.advance_time(minutes=30)
+                system.advance_time(minutes=30, stop_on_event=False)
                 .oracle()
                 .with_id("precondition_room")
                 .depends_on(start_audio, delay_seconds=1)
@@ -229,7 +229,7 @@ K1315 会议室将在今天 10:00 至 11:00 举行 12 人正式会议。请在 0
                 .depends_on(before_meeting, delay_seconds=1)
             )
             wait_for_start = (
-                system.advance_time(minutes=15)
+                system.advance_time(minutes=15, stop_on_event=False)
                 .oracle()
                 .with_id("wait_for_meeting_start")
                 .depends_on(equipment_check, delay_seconds=1)
@@ -241,7 +241,7 @@ K1315 会议室将在今天 10:00 至 11:00 举行 12 人正式会议。请在 0
                 .depends_on(wait_for_start, delay_seconds=1)
             )
             run_meeting = (
-                system.advance_time(minutes=60)
+                system.advance_time(minutes=60, stop_on_event=False)
                 .oracle()
                 .with_id("run_standard_meeting")
                 .depends_on(meeting_start_reading, delay_seconds=1)

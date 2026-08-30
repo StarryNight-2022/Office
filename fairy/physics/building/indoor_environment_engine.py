@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
 from math import exp
-from typing import Mapping
 
 from fairy.physics.building.models import (
     ComfortResult,
@@ -126,8 +126,13 @@ class IndoorEnvironmentEngine:
             if hvac.supply_air_temperature_c is None
             else hvac.supply_air_temperature_c
         )
-        total_outdoor_air_m3_s = infiltration_m3_s + max(
-            0.0, hvac.outdoor_airflow_m3_s
+        mechanical_outdoor_air_m3_s = max(0.0, hvac.outdoor_airflow_m3_s)
+        total_outdoor_air_m3_s = infiltration_m3_s + mechanical_outdoor_air_m3_s
+        sensible_recovery = _clip(
+            hvac.outdoor_air_sensible_recovery_fraction, 0.0, 1.0
+        )
+        latent_recovery = _clip(
+            hvac.outdoor_air_latent_recovery_fraction, 0.0, 1.0
         )
 
         # First-order sensible heat balance:
@@ -138,7 +143,10 @@ class IndoorEnvironmentEngine:
         q_infiltration = (
             self.AIR_DENSITY_KG_M3
             * self.AIR_HEAT_CAPACITY_J_KG_K
-            * total_outdoor_air_m3_s
+            * (
+                infiltration_m3_s
+                + mechanical_outdoor_air_m3_s * (1.0 - sensible_recovery)
+            )
             * (outdoor.air_temperature_c - state.air_temperature_c)
         )
         q_supply = (
@@ -189,7 +197,11 @@ class IndoorEnvironmentEngine:
             / 3_600_000.0
         )
         moisture_rate_g_s = (
-            total_outdoor_air_m3_s * (outdoor_vapor_g_m3 - indoor_vapor_g_m3)
+            (
+                infiltration_m3_s
+                + mechanical_outdoor_air_m3_s * (1.0 - latent_recovery)
+            )
+            * (outdoor_vapor_g_m3 - indoor_vapor_g_m3)
             + max(0.0, hvac.supply_airflow_m3_s)
             * (supply_vapor_g_m3 - indoor_vapor_g_m3)
             + loads.occupants * loads.moisture_g_s_per_person

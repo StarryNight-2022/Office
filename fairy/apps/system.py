@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from collections.abc import Mapping
+from typing import Annotated, Any, Callable
 
 from fairy.apps.app import App
 from fairy.tool_utils import OperationType, app_tool
@@ -34,7 +35,12 @@ class SystemApp(App):
         self._farm_world_app = None
         # Domain runtimes may subscribe without adding building-specific logic
         # to this shared clock App. Hooks receive (previous, current) timestamps.
-        self._time_advance_hooks: list[Callable[[float, float], None]] = []
+        self._time_advance_hooks: list[
+            Callable[[float, float, bool], Mapping[str, Any] | None]
+        ] = []
+        self._time_advance_preconditions: list[
+            Callable[[float], Mapping[str, Any] | None]
+        ] = []
 
     def wait(self, time: int = 0) -> None:
         assert time >= 0, "Time must be non-negative"
@@ -69,20 +75,29 @@ class SystemApp(App):
         self._farm_world_app = farm_world_app
 
     def register_time_advance_hook(
-        self, callback: Callable[[float, float], None]
+        self, callback: Callable[[float, float, bool], Mapping[str, Any] | None]
     ) -> None:
         if callback not in self._time_advance_hooks:
             self._time_advance_hooks.append(callback)
+
+    def register_time_advance_precondition(
+        self, callback: Callable[[float], Mapping[str, Any] | None]
+    ) -> None:
+        """Register a domain guard receiving the requested target timestamp."""
+
+        if callback not in self._time_advance_preconditions:
+            self._time_advance_preconditions.append(callback)
 
     @type_check
     @app_tool()
     @event_registered(operation_type=OperationType.READ)
     def advance_time(
         self,
-        seconds: int = 0,
-        minutes: int = 0,
-        hours: int = 0,
-        days: int = 0,
+        seconds: Annotated[int, {"minimum": 0}] = 0,
+        minutes: Annotated[int, {"minimum": 0}] = 0,
+        hours: Annotated[int, {"minimum": 0}] = 0,
+        days: Annotated[int, {"minimum": 0}] = 0,
+        stop_on_event: bool = True,
     ) -> dict:
         """
         Advance the simulation clock by a specified amount of time.
@@ -97,6 +112,8 @@ class SystemApp(App):
             minutes: Minutes to advance.
             hours: Hours to advance.
             days: Days to advance.
+            stop_on_event: Stop at the first domain event requiring Agent
+                reconciliation. Reference replays may disable this explicitly.
 
         Returns:
             A dictionary containing the new current time.
@@ -106,6 +123,20 @@ class SystemApp(App):
         )
         if total_seconds <= 0:
             return {"error": "advance_time amount must be > 0"}
+        requested_target_timestamp = float(self.time_manager.time()) + total_seconds
+        # ``stop_on_event=False`` is reserved for deterministic Oracle replay;
+        # live Agents keep the default and must satisfy domain reconciliation.
+        if stop_on_event:
+            for callback in tuple(self._time_advance_preconditions):
+                result = callback(requested_target_timestamp)
+                if isinstance(result, Mapping) and not bool(
+                    result.get("allowed", True)
+                ):
+                    return {
+                        "status": "rejected",
+                        "reason": "time_advance_precondition_failed",
+                        "details": dict(result),
+                    }
         previous_timestamp = float(self.time_manager.time())
         farm_world_app = self._farm_world_app
         if farm_world_app is not None:
@@ -129,12 +160,43 @@ class SystemApp(App):
             advance = getattr(farm_world_app, "advance_physics_time", None)
             if callable(advance):
                 advance()
-        timestamp = self.time_manager.time()
+        requested_timestamp = float(self.time_manager.time())
+        timestamp = requested_timestamp
+        interruptions: list[dict[str, Any]] = []
         for callback in tuple(self._time_advance_hooks):
-            callback(previous_timestamp, float(timestamp))
-        return {
+            result = callback(previous_timestamp, float(timestamp), stop_on_event)
+            if not isinstance(result, Mapping):
+                continue
+            actual_timestamp = float(result.get("actual_timestamp", timestamp))
+            # TimeManager follows a monotonic wall clock, while deterministic
+            # domain runtimes use the timestamp captured at call entry. Permit
+            # sub-second scheduler drift at that boundary, then clamp it.
+            tolerance_seconds = 1.0
+            if not (
+                previous_timestamp - tolerance_seconds
+                <= actual_timestamp
+                <= requested_timestamp + tolerance_seconds
+            ):
+                raise ValueError("time advance hook returned an invalid timestamp")
+            actual_timestamp = min(
+                requested_timestamp, max(previous_timestamp, actual_timestamp)
+            )
+            timestamp = min(timestamp, actual_timestamp)
+            interruption = result.get("interruption")
+            if isinstance(interruption, Mapping):
+                interruptions.append(dict(interruption))
+        if timestamp < requested_timestamp:
+            # The clock was optimistically moved to the requested target so
+            # shared Apps saw a consistent timestamp during the hook. Rewind
+            # only the unconsumed portion when the runtime stops at an event.
+            self.time_manager.add_offset(timestamp - requested_timestamp)
+        response = {
             "status": "ok",
-            "advanced_seconds": total_seconds,
+            "advanced_seconds": (
+                timestamp - previous_timestamp
+                if self._time_advance_hooks
+                else total_seconds
+            ),
             "current_timestamp": timestamp,
             # Preserve the historical return shape for exact replay of old
             # traces. Agents needing civil time should call get_current_time.
@@ -142,6 +204,17 @@ class SystemApp(App):
                 timestamp, tz=timezone.utc
             ).strftime("%Y-%m-%d %H:%M:%S"),
         }
+        # Preserve legacy Farm World trace shape when no domain runtime is
+        # attached. Building callers additionally receive event-stop details.
+        if self._time_advance_hooks:
+            response.update(
+                {
+                    "requested_seconds": total_seconds,
+                    "interrupted": bool(interruptions),
+                    "interruptions": interruptions,
+                }
+            )
+        return response
 
     @app_tool()
     @event_registered(operation_type=OperationType.READ)

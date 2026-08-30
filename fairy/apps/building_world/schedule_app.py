@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -40,7 +40,10 @@ class ScheduleApp(App):
     @data_tool()
     @event_registered(operation_type=OperationType.READ)
     def get_person_schedule(
-        self, person_id: str, start_at: str, end_at: str
+        self,
+        person_id: str,
+        start_at: Annotated[str, {"format": "date-time"}],
+        end_at: Annotated[str, {"format": "date-time"}],
     ) -> dict[str, Any]:
         """Return confirmed meetings involving one person in a time window."""
 
@@ -74,7 +77,10 @@ class ScheduleApp(App):
     @data_tool()
     @event_registered(operation_type=OperationType.READ)
     def get_room_schedule(
-        self, room_id: str, start_at: str, end_at: str
+        self,
+        room_id: str,
+        start_at: Annotated[str, {"format": "date-time"}],
+        end_at: Annotated[str, {"format": "date-time"}],
     ) -> dict[str, Any]:
         """Return confirmed meetings occupying a room in a time window."""
 
@@ -109,9 +115,9 @@ class ScheduleApp(App):
         organizer_id: str,
         participant_ids: list[str],
         room_id: str,
-        start_at: str,
-        end_at: str,
-        expected_attendees: int,
+        start_at: Annotated[str, {"format": "date-time"}],
+        end_at: Annotated[str, {"format": "date-time"}],
+        expected_attendees: Annotated[int, {"minimum": 1}],
         required_capabilities: list[str],
         title: str,
     ) -> dict[str, Any]:

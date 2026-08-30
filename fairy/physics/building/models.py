@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Mapping
 
 
 class HvacMode(str, Enum):
@@ -111,6 +111,8 @@ class HvacCommand:
     heating_w: float = 0.0
     cooling_w: float = 0.0
     outdoor_airflow_m3_s: float = 0.0
+    outdoor_air_sensible_recovery_fraction: float = 0.0
+    outdoor_air_latent_recovery_fraction: float = 0.0
     supply_airflow_m3_s: float = 0.0
     supply_air_temperature_c: float | None = None
     supply_air_relative_humidity_pct: float | None = None

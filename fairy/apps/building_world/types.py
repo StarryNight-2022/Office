@@ -55,6 +55,7 @@ class BuildingEventType(str, Enum):
     PERSON_LEFT = "person_left"
     OCCUPANCY_CHANGED = "occupancy_changed"
     DEVICE_STATE_CHANGED = "device_state_changed"
+    PRINT_REQUEST_ADDED = "print_request_added"
     PRINT_JOB_SUBMITTED = "print_job_submitted"
     PRINT_JOB_COMPLETED = "print_job_completed"
     DEVICE_FAILED = "device_failed"

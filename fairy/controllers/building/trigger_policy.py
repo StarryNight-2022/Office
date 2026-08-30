@@ -33,13 +33,16 @@ class BuildingTriggerPolicy:
             BuildingEventType.ENVIRONMENT_CHECK_DUE,
             BuildingEventType.MEETING_DELAYED,
             BuildingEventType.MEETING_ENDED_EARLY,
+            # Whole-room occupancy changes alter thermal and air-quality loads
+            # and therefore invalidate the previous control plan.
+            BuildingEventType.OCCUPANCY_CHANGED,
+            BuildingEventType.PRINT_REQUEST_ADDED,
         }
     )
     _ROUTINE = frozenset(
         {
             BuildingEventType.SENSOR_UPDATED,
             BuildingEventType.DEVICE_STATE_CHANGED,
-            BuildingEventType.OCCUPANCY_CHANGED,
             BuildingEventType.RESOURCE_RESERVED,
             BuildingEventType.RESOURCE_RELEASED,
             BuildingEventType.THRESHOLD_RECOVERED,

@@ -135,7 +135,7 @@ K1316 研讨室将在今天 10:00 至 11:00 举行 8 人组会。请从 09:30 �
                 .depends_on(None, delay_seconds=1)
             )
             wait_for_preparation = (
-                system.advance_time(minutes=30)
+                system.advance_time(minutes=30, stop_on_event=False)
                 .oracle()
                 .with_id("wait_for_seminar_preparation")
                 .depends_on(briefing, delay_seconds=1)
@@ -173,7 +173,7 @@ K1316 研讨室将在今天 10:00 至 11:00 举行 8 人组会。请从 09:30 �
                 .depends_on(set_lighting, delay_seconds=1)
             )
             precondition = (
-                system.advance_time(minutes=25)
+                system.advance_time(minutes=25, stop_on_event=False)
                 .oracle()
                 .with_id("precondition_seminar_room")
                 .depends_on(start_projector, delay_seconds=1)
@@ -191,13 +191,13 @@ K1316 研讨室将在今天 10:00 至 11:00 举行 8 人组会。请从 09:30 �
                 .depends_on(readiness, delay_seconds=1)
             )
             wait_for_start = (
-                system.advance_time(minutes=5)
+                system.advance_time(minutes=5, stop_on_event=False)
                 .oracle()
                 .with_id("wait_for_seminar_start")
                 .depends_on(before_meeting, delay_seconds=1)
             )
             run_first_half = (
-                system.advance_time(minutes=30)
+                system.advance_time(minutes=30, stop_on_event=False)
                 .oracle()
                 .with_id("run_seminar_first_half")
                 .depends_on(wait_for_start, delay_seconds=1)
@@ -215,7 +215,7 @@ K1316 研讨室将在今天 10:00 至 11:00 举行 8 人组会。请从 09:30 �
                 .depends_on(midpoint_environment, delay_seconds=1)
             )
             run_second_half = (
-                system.advance_time(minutes=30)
+                system.advance_time(minutes=30, stop_on_event=False)
                 .oracle()
                 .with_id("run_seminar_second_half")
                 .depends_on(boost_ventilation, delay_seconds=1)

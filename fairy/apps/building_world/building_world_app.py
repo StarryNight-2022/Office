@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.types import (
@@ -154,6 +154,27 @@ class BuildingWorldApp(App):
                 for meeting in self.schedule.values()
                 if meeting.status == MeetingStatus.CONFIRMED
             ],
+        }
+
+    @type_check
+    @app_tool()
+    @data_tool()
+    @event_registered(operation_type=OperationType.READ)
+    def get_recent_building_events(
+        self, limit: Annotated[int, {"minimum": 1, "maximum": 200}] = 20
+    ) -> dict[str, Any]:
+        """Return only events that have already occurred in the simulation.
+
+        Scheduled future events remain inside the Runtime queue and therefore
+        cannot leak through this Agent-facing reconciliation tool.
+        """
+
+        if not 1 <= limit <= 100:
+            return {"error": "limit must be between 1 and 100"}
+        events = self.events[-limit:]
+        return {
+            "events": [_event_to_dict(event) for event in events],
+            "latest_event_id": events[-1].event_id if events else None,
         }
 
     def get_state(self) -> dict[str, Any]:

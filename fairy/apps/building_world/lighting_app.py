@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fairy.apps.app import App
 from fairy.apps.building_world.building_world_app import BuildingWorldApp
@@ -24,8 +24,8 @@ class LightingApp(App):
         self,
         device_id: str,
         power_on: bool,
-        brightness_pct: int,
-        color_temperature_k: int,
+        brightness_pct: Annotated[int, {"minimum": 0, "maximum": 100}],
+        color_temperature_k: Annotated[int, {"minimum": 2700, "maximum": 6500}],
         scene: str,
     ) -> dict[str, Any]:
         spec = self.world.devices.get(device_id)
@@ -36,9 +36,12 @@ class LightingApp(App):
             return _rejected("wrong_device_type", device_id=device_id)
         if state.health != DeviceHealth.ONLINE:
             return _rejected("device_unavailable", health=state.health.value)
-        if not 0 <= brightness_pct <= 100:
+        # Brightness, colour temperature and scene are irrelevant shutdown
+        # fields in fixed gateway schemas.  Accept harmless placeholders when
+        # powering off, just as HvacApp does for its target temperature.
+        if power_on and not 0 <= brightness_pct <= 100:
             return _rejected("brightness_out_of_range")
-        if not 2700 <= color_temperature_k <= 6500:
+        if power_on and not 2700 <= color_temperature_k <= 6500:
             return _rejected("color_temperature_out_of_range")
         if power_on and brightness_pct == 0:
             return _rejected("active_lighting_requires_brightness")
@@ -48,7 +51,7 @@ class LightingApp(App):
         state.level = _level_for_brightness(brightness_pct) if power_on else 0
         state.settings = {
             "brightness_pct": brightness_pct if power_on else 0,
-            "color_temperature_k": color_temperature_k,
+            "color_temperature_k": color_temperature_k if power_on else None,
             "scene": scene if power_on else "off",
         }
         event = self.world.publish_building_event(

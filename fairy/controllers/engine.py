@@ -83,6 +83,21 @@ class Engine:
                 app.wait_for_next_notification = self.wait_for_next_notification
                 if farm_world is not None:
                     app.attach_farm_world_app(farm_world)
+        if self.agent is not None:
+            completion_app = next(
+                (
+                    app
+                    for app in self.scenario.apps or []
+                    if getattr(app, "completion_guard_enabled", False)
+                    and callable(getattr(app, "completion_status", None))
+                ),
+                None,
+            )
+            self.agent.completion_guard = (
+                completion_app.completion_status
+                if completion_app is not None
+                else None
+            )
 
     def schedule_dynamic_event(self, event: Any) -> None:
         self.scenario.dynamic_events.append(event)
