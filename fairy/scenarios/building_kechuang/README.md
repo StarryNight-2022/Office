@@ -3,6 +3,13 @@
 项目全貌、关键决策、实验结论和后续接手清单见
 [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md)。
 
+Building 两层结构（L3 综合运行 → L1 可复用业务能力）的新拆分标准见
+[`l3-to-l1-split-standard.zh.md`](l3-to-l1-split-standard.zh.md)。该标准以业务闭环确定
+边界，不因时间、房间、初态或参数差异复制场景；配套诊断脚本输出来源变体和验证证据。
+20 个 L3 的全量正式审查结果、12 个能力 L1、生成命令和维护流程见 [`l1/README.md`](l1/README.md)。
+首轮多行为试验结果和温控反例见
+[`l3-to-l1-diagnostic-results.zh.md`](l3-to-l1-diagnostic-results.zh.md)。
+
 本包是科创空间智慧建筑场景的统一入口。房间静态事实来自
 `fairy/configs/rooms/`，Scenario 只描述任务、时间线、工具路径和最终验证。
 
@@ -13,6 +20,10 @@ building_kechuang/
 ├── base.py                     # 三房间 Runtime 与 Apps 共享装配
 ├── meeting_lifecycle.py        # 可复用会议阶段与状态转换
 ├── scenario_room_booking.py    # 跨房间预约与选择
+├── l1/
+│   ├── manifest.json           # 人工审核后的正式 L1 合同
+│   ├── base.py                 # 独立初态与业务终态验证
+│   └── generated/              # 生成并注册的原生 L1 Scenario
 ├── l3/
 │   ├── specs.py                # L3 Spec 与动态室外 Profile
 │   ├── catalog.py              # 20 个场景的声明式目录
@@ -28,6 +39,9 @@ building_kechuang/
 ```
 
 ## 当前可运行场景
+
+20 个 L3 已全部完成候选处置并归并为 12 个正式能力 L1；完整 ID、来源变体、审查账本和复现
+命令见 [`l1/README.md`](l1/README.md)。下表是原有手写 Building 场景入口。
 
 | Scenario ID | 房间范围 | 目标 |
 |---|---|---|

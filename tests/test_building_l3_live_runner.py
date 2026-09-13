@@ -1,7 +1,10 @@
 """Offline tests for the staged Building live-model runner."""
 
 import importlib.util
+import sys
 from pathlib import Path
+
+import pytest
 
 
 def _runner_module():
@@ -78,6 +81,10 @@ def test_failure_row_is_reportable(tmp_path) -> None:
     assert "wrapper_timeout" in (tmp_path / "summary.md").read_text()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="os.environ is case-insensitive on Windows; NO_PROXY/no_proxy share one entry",
+)
 def test_private_endpoint_is_added_to_no_proxy(monkeypatch) -> None:
     runner = _runner_module()
     monkeypatch.setenv("NO_PROXY", "localhost")

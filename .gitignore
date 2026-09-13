@@ -36,3 +36,7 @@ runs/
 fos_exports/
 workflow_exports/
 *.log
+
+# Local planning and advisor review notes
+.planning/
+building_l1_advisor_report.zh.md
